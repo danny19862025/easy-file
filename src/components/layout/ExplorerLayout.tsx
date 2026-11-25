@@ -5,6 +5,7 @@ import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { ExplorerPane } from "../explorer/ExplorerPane";
+import { ContextMenu, ContextMenuState } from "../explorer/ContextMenu";
 import { QuickPreviewPanel } from "../preview/QuickPreviewPanel";
 import { TerminalDrawer } from "../terminal/TerminalDrawer";
 import { DiskUsageOverlay } from "../disk/DiskUsageOverlay";
@@ -20,6 +21,7 @@ export const ExplorerLayout: React.FC = () => {
   const [activeEntries, setActiveEntries] = useState<FileEntry[]>([]);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [focusPathSignal, setFocusPathSignal] = useState(0);
   const [reloadSignal, setReloadSignal] = useState(0);
 
@@ -101,22 +103,34 @@ export const ExplorerLayout: React.FC = () => {
     }
   }, [activePane.id, activePane.selectedPaths, store]);
 
-  const handlePaste = useCallback(async () => {
-    const clip = store.clipboard;
-    if (!clip || clip.paths.length === 0) return;
-    try {
-      if (clip.mode === "copy") {
-        await invoke("copy_entries", { sources: clip.paths, destDir: activeTab.path });
-        store.showToast(`Copied ${clip.paths.length} item(s)`);
-      } else {
-        await invoke("move_entries", { sources: clip.paths, destDir: activeTab.path });
-        store.setClipboard(null);
-        store.showToast(`Moved ${clip.paths.length} item(s)`);
+  const handlePaste = useCallback(
+    async (overrideDest?: string) => {
+      const clip = store.clipboard;
+      if (!clip || clip.paths.length === 0) return;
+      const destDir = overrideDest ?? activeTab.path;
+      try {
+        if (clip.mode === "copy") {
+          await invoke("copy_entries", { sources: clip.paths, destDir });
+          store.showToast(`Copied ${clip.paths.length} item(s)`);
+        } else {
+          await invoke("move_entries", { sources: clip.paths, destDir });
+          store.setClipboard(null);
+          store.showToast(`Moved ${clip.paths.length} item(s)`);
+        }
+      } catch (err) {
+        store.showToast(String(err));
       }
-    } catch (err) {
-      store.showToast(String(err));
-    }
-  }, [store, activeTab.path]);
+    },
+    [store, activeTab.path]
+  );
+
+  const handleCopyPath = useCallback(
+    (path: string) => {
+      navigator.clipboard?.writeText(path).catch(() => {});
+      store.showToast("Copied path to clipboard");
+    },
+    [store]
+  );
 
   const handleDropEntries = useCallback(
     async (sources: string[], destDir: string) => {
@@ -337,6 +351,9 @@ export const ExplorerLayout: React.FC = () => {
               onActiveEntryChange={setActiveEntry}
               onActiveEntriesChange={setActiveEntries}
               onDropEntries={handleDropEntries}
+              onContextMenu={(e, entry, dirPath) =>
+                setContextMenu({ x: e.clientX, y: e.clientY, paneId: pane.id, dirPath, entry })
+              }
               reloadSignal={reloadSignal}
             />
           ))}
@@ -361,6 +378,67 @@ export const ExplorerLayout: React.FC = () => {
 
       {showThemeModal && <ThemeSwitcherModal onClose={() => setShowThemeModal(false)} />}
       {showShortcutsModal && <ShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
+
+      {contextMenu && (
+        <ContextMenu
+          menu={contextMenu}
+          hasClipboard={Boolean(store.clipboard && store.clipboard.paths.length > 0)}
+          isPinned={store.pinnedPaths.includes(
+            contextMenu.entry?.path ?? contextMenu.dirPath
+          )}
+          onClose={() => setContextMenu(null)}
+          onOpen={(entry) => {
+            if (entry.isDir) {
+              store.navigate(contextMenu.paneId, entry.path);
+            } else {
+              invoke("open_with_default", { path: entry.path }).catch(() => {});
+            }
+          }}
+          onOpenInNewTab={(path) => store.addTab(contextMenu.paneId, path)}
+          onPreview={() => {
+            if (!store.showPreview) store.togglePreview();
+          }}
+          onCut={() => {
+            const paths =
+              activePane.selectedPaths.length > 0
+                ? activePane.selectedPaths
+                : contextMenu.entry
+                ? [contextMenu.entry.path]
+                : [];
+            if (paths.length > 0) {
+              store.setClipboard({ mode: "cut", paths });
+              store.showToast(`Cut ${paths.length} item(s)`);
+            }
+          }}
+          onCopy={() => {
+            const paths =
+              activePane.selectedPaths.length > 0
+                ? activePane.selectedPaths
+                : contextMenu.entry
+                ? [contextMenu.entry.path]
+                : [];
+            if (paths.length > 0) {
+              store.setClipboard({ mode: "copy", paths });
+              store.showToast(`Copied ${paths.length} item(s)`);
+            }
+          }}
+          onPaste={(destDir) => handlePaste(destDir)}
+          onCopyPath={handleCopyPath}
+          onRename={handleRename}
+          onTogglePin={store.togglePin}
+          onTrash={handleTrash}
+          onDeletePermanent={handleDeletePermanent}
+          onCreateFolder={handleCreateFolder}
+          onCreateFile={handleCreateFile}
+          onRefresh={() => setReloadSignal((n) => n + 1)}
+          onOpenTerminal={() => {
+            if (!store.showTerminal) store.toggleTerminal();
+          }}
+          onDiskUsage={() => {
+            if (!store.showDiskUsage) store.toggleDiskUsage();
+          }}
+        />
+      )}
 
       {store.toast && (
         <div className="fixed bottom-10 right-6 z-50 px-3.5 py-2 rounded-lg border border-selected/60 bg-mantle/95 backdrop-blur-md text-xs text-main shadow-xl">

@@ -31,6 +31,7 @@ interface ExplorerPaneProps {
   onActiveEntryChange: (entry: FileEntry | null) => void;
   onActiveEntriesChange: (entries: FileEntry[]) => void;
   onDropEntries: (sources: string[], destDir: string) => void;
+  onContextMenu: (e: React.MouseEvent, entry: FileEntry | null, dirPath: string) => void;
   reloadSignal: number;
 }
 
@@ -73,6 +74,7 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
   onActiveEntryChange,
   onActiveEntriesChange,
   onDropEntries,
+  onContextMenu,
   reloadSignal,
 }) => {
   const activeTab = pane.tabs.find((t) => t.id === pane.activeTabId) ?? pane.tabs[0];
@@ -154,9 +156,20 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
     }
   };
 
+  const handleContextMenu = (e: React.MouseEvent, entry: FileEntry | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onActivate();
+    if (entry && !pane.selectedPaths.includes(entry.path)) {
+      onSelectPaths([entry.path]);
+    }
+    onContextMenu(e, entry, activeTab.path);
+  };
+
   return (
     <div
       onMouseDown={onActivate}
+      onContextMenu={(e) => handleContextMenu(e, null)}
       onDragOver={(e) => {
         e.preventDefault();
         setDragOverPath(activeTab.path);
@@ -250,6 +263,7 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
                     onDrop={(e) => entry.isDir && handleDropOnTarget(e, entry.path)}
                     onClick={(e) => handleSelect(e, entry)}
                     onDoubleClick={() => handleOpen(entry)}
+                    onContextMenu={(e) => handleContextMenu(e, entry)}
                     style={{
                       position: "absolute",
                       top: 0,
@@ -300,6 +314,7 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
                   key={entry.path}
                   onClick={(e) => handleSelect(e, entry)}
                   onDoubleClick={() => handleOpen(entry)}
+                  onContextMenu={(e) => handleContextMenu(e, entry)}
                   className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border text-sm text-left transition ${
                     selected
                       ? "bg-accent/15 border-selected text-main"
@@ -340,6 +355,7 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
                   onDrop={(e) => entry.isDir && handleDropOnTarget(e, entry.path)}
                   onClick={(e) => handleSelect(e, entry)}
                   onDoubleClick={() => handleOpen(entry)}
+                  onContextMenu={(e) => handleContextMenu(e, entry)}
                   className={`group item-hover-glow flex flex-col items-center p-2.5 rounded-xl border transition text-center ${
                     selected
                       ? "bg-accent/15 border-selected shadow-sm"
