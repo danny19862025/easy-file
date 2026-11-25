@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FileEntry, MountPoint, UserDirsInfo } from "../../types/fs";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
+import { useShelfStore } from "../../stores/useShelfStore";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { ExplorerPane } from "../explorer/ExplorerPane";
 import { ContextMenu, ContextMenuState } from "../explorer/ContextMenu";
-import { QuickPreviewPanel } from "../preview/QuickPreviewPanel";
+import { DropZoneShelf } from "../explorer/DropZoneShelf";
+import { QuickLookModal } from "../preview/QuickLookModal";
 import { TerminalDrawer } from "../terminal/TerminalDrawer";
 import { DiskUsageOverlay } from "../disk/DiskUsageOverlay";
 import { ThemeSwitcherModal } from "../settings/ThemeSwitcherModal";
@@ -15,6 +17,7 @@ import { baseName, parentPath } from "../../lib/format";
 
 export const ExplorerLayout: React.FC = () => {
   const store = useWorkspaceStore();
+  const shelf = useShelfStore();
   const [userDirs, setUserDirs] = useState<UserDirsInfo | null>(null);
   const [mounts, setMounts] = useState<MountPoint[]>([]);
   const [activeEntry, setActiveEntry] = useState<FileEntry | null>(null);
@@ -24,6 +27,7 @@ export const ExplorerLayout: React.FC = () => {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [focusPathSignal, setFocusPathSignal] = useState(0);
   const [reloadSignal, setReloadSignal] = useState(0);
+  const panesContainerRef = useRef<HTMLDivElement>(null);
 
   const activePane = store.panes.find((p) => p.id === store.activePaneId) ?? store.panes[0];
   const activeTab =
@@ -41,6 +45,24 @@ export const ExplorerLayout: React.FC = () => {
       .then(setMounts)
       .catch(() => {});
   }, []);
+
+  const handleStartResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const container = panesContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+
+    const onMove = (ev: MouseEvent) => {
+      const pct = ((ev.clientX - rect.left) / rect.width) * 100;
+      store.setSplitRatio(pct);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
 
   const handleCreateFolder = useCallback(async () => {
     const name = window.prompt("New folder name:");
@@ -144,6 +166,18 @@ export const ExplorerLayout: React.FC = () => {
     [store]
   );
 
+  const handleCopyEntries = useCallback(
+    async (sources: string[], destDir: string) => {
+      try {
+        await invoke("copy_entries", { sources, destDir });
+        store.showToast(`Copied ${sources.length} item(s)`);
+      } catch (err) {
+        store.showToast(String(err));
+      }
+    },
+    [store]
+  );
+
   // Comprehensive Linux File Manager Keyboard Shortcuts
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -158,8 +192,8 @@ export const ExplorerLayout: React.FC = () => {
       const key = e.key.toLowerCase();
       const ctrl = e.ctrlKey || e.metaKey;
 
-      // Escape closes modals or clears selection
       if (e.key === "Escape") {
+        if (store.showQuickLook) return store.setShowQuickLook(false);
         if (showThemeModal) return setShowThemeModal(false);
         if (showShortcutsModal) return setShowShortcutsModal(false);
         if (store.showDiskUsage) return store.toggleDiskUsage();
@@ -169,14 +203,12 @@ export const ExplorerLayout: React.FC = () => {
         return;
       }
 
-      // Shortcuts Modal: Ctrl+/ or ?
       if ((ctrl && e.key === "/") || (!ctrl && e.key === "?")) {
         e.preventDefault();
         setShowShortcutsModal((v) => !v);
         return;
       }
 
-      // File Operations
       if (ctrl && key === "c" && activePane.selectedPaths.length > 0) {
         e.preventDefault();
         store.setClipboard({ mode: "copy", paths: activePane.selectedPaths });
@@ -216,9 +248,7 @@ export const ExplorerLayout: React.FC = () => {
         } else {
           invoke("open_with_default", { path: activeEntry.path }).catch(() => {});
         }
-      }
-      // Navigation & Tabs
-      else if (ctrl && key === "l") {
+      } else if (ctrl && key === "l") {
         e.preventDefault();
         setFocusPathSignal((n) => n + 1);
       } else if (e.altKey && e.key === "ArrowLeft") {
@@ -244,20 +274,27 @@ export const ExplorerLayout: React.FC = () => {
       } else if (e.key === "F5" || (ctrl && key === "r")) {
         e.preventDefault();
         setReloadSignal((n) => n + 1);
-      }
-      // Views & Panels
-      else if (ctrl && e.key === "1") {
+      } else if (ctrl && e.key === "1") {
         e.preventDefault();
-        store.setViewMode("grid");
+        store.setPaneViewMode(activePane.id, "grid");
       } else if (ctrl && e.key === "2") {
         e.preventDefault();
-        store.setViewMode("list");
+        store.setPaneViewMode(activePane.id, "list");
       } else if (ctrl && e.key === "3") {
         e.preventDefault();
-        store.setViewMode("column");
+        store.setPaneViewMode(activePane.id, "details");
+      } else if (ctrl && e.key === "4") {
+        e.preventDefault();
+        store.setPaneViewMode(activePane.id, "miller");
+      } else if (ctrl && e.key === "5") {
+        e.preventDefault();
+        store.setPaneViewMode(activePane.id, "tree");
       } else if (e.code === "Space") {
         e.preventDefault();
-        store.togglePreview();
+        if (activeEntry || store.showQuickLook) store.toggleQuickLook();
+      } else if (ctrl && key === "b") {
+        e.preventDefault();
+        store.toggleShelf();
       } else if (ctrl && key === "h") {
         e.preventDefault();
         store.toggleHidden();
@@ -311,62 +348,95 @@ export const ExplorerLayout: React.FC = () => {
           canBack={activeTab.historyIndex > 0}
           canForward={activeTab.historyIndex < activeTab.history.length - 1}
           isPinned={store.pinnedPaths.includes(activeTab.path)}
-          viewMode={store.viewMode}
+          viewMode={activePane.viewMode}
           splitView={store.splitView}
           showHidden={store.showHidden}
-          showPreview={store.showPreview}
+          showQuickLook={store.showQuickLook}
           showTerminal={store.showTerminal}
           showDiskUsage={store.showDiskUsage}
+          showShelf={store.showShelf}
+          shelfCount={shelf.items.length}
           onBack={() => store.goBack(activePane.id)}
           onForward={() => store.goForward(activePane.id)}
           onNavigate={(path) => store.navigate(activePane.id, path)}
           onTogglePin={() => store.togglePin(activeTab.path)}
           onCreateFolder={handleCreateFolder}
           onCreateFile={handleCreateFile}
-          onViewMode={store.setViewMode}
+          onViewMode={(mode) => store.setPaneViewMode(activePane.id, mode)}
           onToggleSplit={store.toggleSplitView}
           onToggleHidden={store.toggleHidden}
-          onTogglePreview={store.togglePreview}
+          onToggleQuickLook={store.toggleQuickLook}
           onToggleTerminal={store.toggleTerminal}
           onToggleDiskUsage={store.toggleDiskUsage}
+          onToggleShelf={store.toggleShelf}
           onOpenThemeModal={() => setShowThemeModal(true)}
           onOpenShortcutsModal={() => setShowShortcutsModal(true)}
           focusPathSignal={focusPathSignal}
         />
 
-        <div className="flex-1 flex min-h-0">
-          {store.panes.map((pane) => (
-            <ExplorerPane
-              key={pane.id}
-              pane={pane}
-              isActive={pane.id === store.activePaneId}
-              viewMode={store.viewMode}
-              showHidden={store.showHidden}
-              onActivate={() => store.setActivePane(pane.id)}
-              onNavigate={(path) => store.navigate(pane.id, path)}
-              onAddTab={() => store.addTab(pane.id)}
-              onCloseTab={(tabId) => store.closeTab(pane.id, tabId)}
-              onSelectTab={(tabId) => store.setActiveTab(pane.id, tabId)}
-              onSelectPaths={(paths) => store.setSelection(pane.id, paths)}
-              onActiveEntryChange={setActiveEntry}
-              onActiveEntriesChange={setActiveEntries}
-              onDropEntries={handleDropEntries}
-              onContextMenu={(e, entry, dirPath) =>
-                setContextMenu({ x: e.clientX, y: e.clientY, paneId: pane.id, dirPath, entry })
-              }
-              reloadSignal={reloadSignal}
-            />
-          ))}
+        {/* Draggable Split Panes */}
+        <div ref={panesContainerRef} className="flex-1 flex min-h-0">
+          {store.panes.map((pane, idx) => {
+            const widthStyle: React.CSSProperties | undefined = store.splitView
+              ? {
+                  width: idx === 0 ? `${store.splitRatio}%` : `${100 - store.splitRatio}%`,
+                  flexShrink: 0,
+                }
+              : { flex: 1 };
 
-          {store.showPreview && (
-            <QuickPreviewPanel entry={activeEntry} onClose={store.togglePreview} />
-          )}
+            return (
+              <React.Fragment key={pane.id}>
+                <ExplorerPane
+                  pane={pane}
+                  isActive={pane.id === store.activePaneId}
+                  showHidden={store.showHidden}
+                  style={widthStyle}
+                  onActivate={() => store.setActivePane(pane.id)}
+                  onNavigate={(path) => store.navigate(pane.id, path)}
+                  onAddTab={() => store.addTab(pane.id)}
+                  onCloseTab={(tabId) => store.closeTab(pane.id, tabId)}
+                  onSelectTab={(tabId) => store.setActiveTab(pane.id, tabId)}
+                  onSelectPaths={(paths) => store.setSelection(pane.id, paths)}
+                  onActiveEntryChange={setActiveEntry}
+                  onActiveEntriesChange={setActiveEntries}
+                  onDropEntries={handleDropEntries}
+                  onContextMenu={(e, entry, dirPath) =>
+                    setContextMenu({ x: e.clientX, y: e.clientY, paneId: pane.id, dirPath, entry })
+                  }
+                  reloadSignal={reloadSignal}
+                />
+                {store.splitView && idx === 0 && (
+                  <div
+                    onMouseDown={handleStartResize}
+                    onDoubleClick={() => store.setSplitRatio(50)}
+                    className="w-1.5 shrink-0 bg-subtle/60 hover:bg-selected cursor-col-resize transition"
+                    title="Drag to resize split panes (double-click to reset)"
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
 
         {store.showTerminal && (
           <TerminalDrawer cwd={activeTab.path} onClose={store.toggleTerminal} />
         )}
       </div>
+
+      {/* Persistent Drop Zone Shelf */}
+      {store.showShelf && (
+        <DropZoneShelf
+          currentPath={activeTab.path}
+          onMoveAllHere={(paths) => handleDropEntries(paths, activeTab.path)}
+          onCopyAllHere={(paths) => handleCopyEntries(paths, activeTab.path)}
+          onClose={() => store.setShowShelf(false)}
+        />
+      )}
+
+      {/* Floating Quick Look Modal (Spacebar) */}
+      {store.showQuickLook && (
+        <QuickLookModal entry={activeEntry} onClose={() => store.setShowQuickLook(false)} />
+      )}
 
       {store.showDiskUsage && (
         <DiskUsageOverlay
@@ -383,9 +453,7 @@ export const ExplorerLayout: React.FC = () => {
         <ContextMenu
           menu={contextMenu}
           hasClipboard={Boolean(store.clipboard && store.clipboard.paths.length > 0)}
-          isPinned={store.pinnedPaths.includes(
-            contextMenu.entry?.path ?? contextMenu.dirPath
-          )}
+          isPinned={store.pinnedPaths.includes(contextMenu.entry?.path ?? contextMenu.dirPath)}
           onClose={() => setContextMenu(null)}
           onOpen={(entry) => {
             if (entry.isDir) {
@@ -395,9 +463,7 @@ export const ExplorerLayout: React.FC = () => {
             }
           }}
           onOpenInNewTab={(path) => store.addTab(contextMenu.paneId, path)}
-          onPreview={() => {
-            if (!store.showPreview) store.togglePreview();
-          }}
+          onPreview={() => store.setShowQuickLook(true)}
           onCut={() => {
             const paths =
               activePane.selectedPaths.length > 0
@@ -424,6 +490,20 @@ export const ExplorerLayout: React.FC = () => {
           }}
           onPaste={(destDir) => handlePaste(destDir)}
           onCopyPath={handleCopyPath}
+          onParkInShelf={() => {
+            const toPark =
+              activePane.selectedPaths.length > 0
+                ? activePane.selectedPaths.map((p) => ({
+                    path: p,
+                    isDir: activeEntries.find((e) => e.path === p)?.isDir ?? false,
+                  }))
+                : contextMenu.entry
+                ? [{ path: contextMenu.entry.path, isDir: contextMenu.entry.isDir }]
+                : [];
+            const added = shelf.addPaths(toPark);
+            store.setShowShelf(true);
+            store.showToast(`Parked ${added} item(s) in Drop Shelf`);
+          }}
           onRename={handleRename}
           onTogglePin={store.togglePin}
           onTrash={handleTrash}
@@ -441,7 +521,7 @@ export const ExplorerLayout: React.FC = () => {
       )}
 
       {store.toast && (
-        <div className="fixed bottom-10 right-6 z-50 px-3.5 py-2 rounded-lg border border-selected/60 bg-mantle/95 backdrop-blur-md text-xs text-main shadow-xl">
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 px-3.5 py-2 rounded-lg border border-selected/60 bg-mantle/95 backdrop-blur-md text-xs text-main shadow-xl">
           {store.toast}
         </div>
       )}

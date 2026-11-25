@@ -104,6 +104,10 @@ pub enum PreviewData {
         url: String,
         mime: String,
     },
+    Video {
+        url: String,
+        mime: String,
+    },
     Audio {
         url: String,
         mime: String,

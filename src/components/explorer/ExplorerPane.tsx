@@ -1,27 +1,20 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  FileText,
-  Folder,
-  Link2,
-  Plus,
-  X,
-  Image as ImageIcon,
-  Film,
-  Music,
-  FileCode2,
-} from "lucide-react";
-import { FileEntry, ViewMode } from "../../types/fs";
+import { Folder, Link2, Plus, X } from "lucide-react";
+import { FileEntry } from "../../types/fs";
 import { PaneState } from "../../stores/useWorkspaceStore";
 import { useDirectoryStream } from "../../hooks/useDirectoryStream";
 import { baseName, formatBytes, formatDate, formatMode, localFileUrl } from "../../lib/format";
+import { EntryIcon } from "./EntryIcon";
+import { MillerColumnsView } from "./MillerColumnsView";
+import { TreeView } from "./TreeView";
 
 interface ExplorerPaneProps {
   pane: PaneState;
   isActive: boolean;
-  viewMode: ViewMode;
   showHidden: boolean;
+  style?: React.CSSProperties;
   onActivate: () => void;
   onNavigate: (path: string) => void;
   onAddTab: () => void;
@@ -35,36 +28,11 @@ interface ExplorerPaneProps {
   reloadSignal: number;
 }
 
-function EntryIcon({ entry, size = "md" }: { entry: FileEntry; size?: "sm" | "md" }) {
-  const cls = size === "sm" ? "w-4 h-4 shrink-0" : "w-11 h-11";
-  if (entry.isDir) {
-    return <Folder className={`${cls} text-folder fill-folder/20`} />;
-  }
-  if (entry.mimeType?.startsWith("image/")) {
-    return <ImageIcon className={`${cls} text-success`} />;
-  }
-  if (entry.mimeType?.startsWith("video/")) {
-    return <Film className={`${cls} text-secondary`} />;
-  }
-  if (entry.mimeType?.startsWith("audio/")) {
-    return <Music className={`${cls} text-danger`} />;
-  }
-  if (
-    entry.extension &&
-    ["rs", "ts", "tsx", "js", "jsx", "py", "go", "c", "cpp", "json", "toml"].includes(
-      entry.extension
-    )
-  ) {
-    return <FileCode2 className={`${cls} text-warning`} />;
-  }
-  return <FileText className={`${cls} text-muted`} />;
-}
-
 export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
   pane,
   isActive,
-  viewMode,
   showHidden,
+  style,
   onActivate,
   onNavigate,
   onAddTab,
@@ -86,24 +54,20 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
   const listParentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (isActive && reloadSignal > 0) {
-      reload();
-    }
-  }, [isActive, reloadSignal]);
-
-  useEffect(() => {
-    if (isActive) {
-      onActiveEntriesChange(entries);
-    }
-  }, [isActive, entries, onActiveEntriesChange]);
-
   const rowVirtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: () => listParentRef.current,
     estimateSize: () => 36,
     overscan: 16,
   });
+
+  useEffect(() => {
+    if (isActive && reloadSignal > 0) reload();
+  }, [isActive, reloadSignal]);
+
+  useEffect(() => {
+    if (isActive) onActiveEntriesChange(entries);
+  }, [isActive, entries, onActiveEntriesChange]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -168,6 +132,7 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
 
   return (
     <div
+      style={style}
       onMouseDown={onActivate}
       onContextMenu={(e) => handleContextMenu(e, null)}
       onDragOver={(e) => {
@@ -176,7 +141,7 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
       }}
       onDragLeave={() => setDragOverPath(null)}
       onDrop={(e) => handleDropOnTarget(e, activeTab.path)}
-      className={`flex-1 flex flex-col min-w-0 min-h-0 border-r last:border-r-0 border-subtle transition ${
+      className={`flex flex-col min-w-0 min-h-0 transition ${
         isActive ? "bg-base" : "bg-base/85 opacity-90"
       } ${dragOverPath === activeTab.path ? "ring-2 ring-inset ring-selected/60" : ""}`}
     >
@@ -226,8 +191,8 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
         </div>
       )}
 
-      {/* Main View Surface */}
-      {viewMode === "list" ? (
+      {/* 5 Multi-Layout Views */}
+      {pane.viewMode === "details" ? (
         <div className="flex-1 flex flex-col min-h-0">
           <div className="px-4 py-1.5 border-b border-subtle/60 text-[11px] font-medium uppercase tracking-wider text-muted flex items-center justify-between">
             <span>Name</span>
@@ -285,9 +250,7 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
                       <span className={`truncate ${entry.isHidden ? "opacity-60" : ""}`}>
                         {entry.name}
                       </span>
-                      {entry.isSymlink && (
-                        <Link2 className="w-3 h-3 text-warning shrink-0" />
-                      )}
+                      {entry.isSymlink && <Link2 className="w-3 h-3 text-warning shrink-0" />}
                     </div>
                     <div className="flex items-center gap-6 shrink-0 text-xs text-muted font-mono">
                       <span className="w-20 text-right">{formatBytes(entry.size)}</span>
@@ -304,36 +267,71 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
             </div>
           </div>
         </div>
-      ) : viewMode === "column" ? (
-        <div className="flex-1 overflow-x-auto flex divide-x divide-subtle">
-          <div className="w-64 shrink-0 overflow-y-auto p-1.5 space-y-0.5">
+      ) : pane.viewMode === "list" ? (
+        <div className="flex-1 overflow-y-auto p-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
             {entries.map((entry) => {
               const selected = pane.selectedPaths.includes(entry.path);
               return (
                 <button
                   key={entry.path}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, entry)}
+                  onDragOver={(e) => {
+                    if (entry.isDir) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverPath(entry.path);
+                    }
+                  }}
+                  onDrop={(e) => entry.isDir && handleDropOnTarget(e, entry.path)}
                   onClick={(e) => handleSelect(e, entry)}
                   onDoubleClick={() => handleOpen(entry)}
                   onContextMenu={(e) => handleContextMenu(e, entry)}
-                  className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border text-sm text-left transition ${
+                  className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border text-xs text-left transition ${
                     selected
-                      ? "bg-accent/15 border-selected text-main"
+                      ? "bg-accent/15 border-selected text-main font-medium"
+                      : dragOverPath === entry.path
+                      ? "bg-accent/25 border-selected"
                       : "border-transparent hover:bg-surface/80 text-main/90"
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <EntryIcon entry={entry} size="sm" />
-                    <span className="truncate">{entry.name}</span>
+                    <span className={`truncate ${entry.isHidden ? "opacity-60" : ""}`}>
+                      {entry.name}
+                    </span>
                   </div>
-                  {entry.isDir && <span className="text-muted text-xs">›</span>}
+                  <span className="text-[10px] font-mono text-muted shrink-0">
+                    {formatBytes(entry.size)}
+                  </span>
                 </button>
               );
             })}
           </div>
-          <div className="flex-1 flex items-center justify-center text-xs text-muted p-6">
-            Double-click any folder to step deeper, or press Space for Quick Preview.
-          </div>
         </div>
+      ) : pane.viewMode === "miller" ? (
+        <MillerColumnsView
+          rootPath={activeTab.path}
+          rootEntries={entries}
+          showHidden={showHidden}
+          onSelect={handleSelect}
+          onOpen={handleOpen}
+          onContextMenu={(e, entry) => handleContextMenu(e, entry)}
+          onDragStart={handleDragStart}
+        />
+      ) : pane.viewMode === "tree" ? (
+        <TreeView
+          rootPath={activeTab.path}
+          entries={entries}
+          selectedPaths={pane.selectedPaths}
+          showHidden={showHidden}
+          onSelect={handleSelect}
+          onOpen={handleOpen}
+          onContextMenu={(e, entry) => handleContextMenu(e, entry)}
+          onDragStart={handleDragStart}
+          onDropOnDir={handleDropOnTarget}
+        />
       ) : (
         <div className="flex-1 overflow-y-auto p-3">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(122px,1fr))] gap-2.5">
@@ -399,8 +397,12 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
           {entries.length.toLocaleString()} items
           {pane.selectedPaths.length > 0 ? ` • ${pane.selectedPaths.length} selected` : ""}
         </span>
-        <span>
-          {isLoading ? "Scanning…" : elapsedMs !== null ? `Loaded in ${elapsedMs} ms` : ""}
+        <span className="uppercase text-[10px] tracking-wider">
+          {isLoading
+            ? "Scanning…"
+            : elapsedMs !== null
+            ? `${pane.viewMode} • ${elapsedMs} ms`
+            : pane.viewMode}
         </span>
       </footer>
     </div>

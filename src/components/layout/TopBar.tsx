@@ -9,13 +9,16 @@ import {
   EyeOff,
   FilePlus,
   FolderPlus,
+  FolderTree,
   Keyboard,
+  Layers,
   LayoutGrid,
   List,
   Palette,
-  PanelRight,
   PieChart,
   Pin,
+  Search,
+  TableProperties,
   Terminal,
 } from "lucide-react";
 import { ViewMode } from "../../types/fs";
@@ -30,9 +33,11 @@ interface TopBarProps {
   viewMode: ViewMode;
   splitView: boolean;
   showHidden: boolean;
-  showPreview: boolean;
+  showQuickLook: boolean;
   showTerminal: boolean;
   showDiskUsage: boolean;
+  showShelf: boolean;
+  shelfCount: number;
   onBack: () => void;
   onForward: () => void;
   onNavigate: (path: string) => void;
@@ -42,9 +47,10 @@ interface TopBarProps {
   onViewMode: (mode: ViewMode) => void;
   onToggleSplit: () => void;
   onToggleHidden: () => void;
-  onTogglePreview: () => void;
+  onToggleQuickLook: () => void;
   onToggleTerminal: () => void;
   onToggleDiskUsage: () => void;
+  onToggleShelf: () => void;
   onOpenThemeModal: () => void;
   onOpenShortcutsModal: () => void;
   focusPathSignal: number;
@@ -58,9 +64,11 @@ export const TopBar: React.FC<TopBarProps> = ({
   viewMode,
   splitView,
   showHidden,
-  showPreview,
+  showQuickLook,
   showTerminal,
   showDiskUsage,
+  showShelf,
+  shelfCount,
   onBack,
   onForward,
   onNavigate,
@@ -70,9 +78,10 @@ export const TopBar: React.FC<TopBarProps> = ({
   onViewMode,
   onToggleSplit,
   onToggleHidden,
-  onTogglePreview,
+  onToggleQuickLook,
   onToggleTerminal,
   onToggleDiskUsage,
+  onToggleShelf,
   onOpenThemeModal,
   onOpenShortcutsModal,
   focusPathSignal,
@@ -118,7 +127,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         <button
           onClick={() => onNavigate(parentPath(currentPath))}
           className="p-1.5 rounded-md hover:bg-surface text-main transition"
-          title="Parent Directory"
+          title="Parent Directory (Alt+Up)"
         >
           <ArrowUp className="w-4 h-4" />
         </button>
@@ -171,7 +180,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                       e.stopPropagation();
                       onNavigate(target);
                     }}
-                    className={`px-1.5 py-0.5 rounded hover:bg-surface truncate max-w-[170px] transition ${
+                    className={`px-1.5 py-0.5 rounded hover:bg-surface truncate max-w-[160px] transition ${
                       isLast ? "text-main font-medium" : "text-muted hover:text-main"
                     }`}
                   >
@@ -202,14 +211,14 @@ export const TopBar: React.FC<TopBarProps> = ({
         <button
           onClick={onCreateFolder}
           className="p-1.5 rounded-md hover:bg-surface text-main transition"
-          title="New Folder"
+          title="New Folder (Ctrl+Shift+N)"
         >
           <FolderPlus className="w-4 h-4" />
         </button>
         <button
           onClick={onCreateFile}
           className="p-1.5 rounded-md hover:bg-surface text-main transition"
-          title="New File"
+          title="New File (Ctrl+Alt+N)"
         >
           <FilePlus className="w-4 h-4" />
         </button>
@@ -217,14 +226,14 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       <div className="w-px h-4 bg-subtle" />
 
-      {/* View Modes */}
+      {/* 5 Multi-Layout View Modes (per active pane) */}
       <div className="flex items-center gap-0.5">
         <button
           onClick={() => onViewMode("grid")}
           className={`p-1.5 rounded-md transition ${
             viewMode === "grid" ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
-          title="Grid View"
+          title="Grid View (Ctrl+1)"
         >
           <LayoutGrid className="w-4 h-4" />
         </button>
@@ -233,33 +242,65 @@ export const TopBar: React.FC<TopBarProps> = ({
           className={`p-1.5 rounded-md transition ${
             viewMode === "list" ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
-          title="Detailed List View"
+          title="Compact List View (Ctrl+2)"
         >
           <List className="w-4 h-4" />
         </button>
         <button
-          onClick={() => onViewMode("column")}
+          onClick={() => onViewMode("details")}
           className={`p-1.5 rounded-md transition ${
-            viewMode === "column" ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
+            viewMode === "details" ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
-          title="Column View"
+          title="Details Table View (Ctrl+3)"
+        >
+          <TableProperties className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onViewMode("miller")}
+          className={`p-1.5 rounded-md transition ${
+            viewMode === "miller" ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
+          }`}
+          title="Miller Columns View (Ctrl+4)"
         >
           <Columns3 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onViewMode("tree")}
+          className={`p-1.5 rounded-md transition ${
+            viewMode === "tree" ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
+          }`}
+          title="Tree Hierarchy View (Ctrl+5)"
+        >
+          <FolderTree className="w-4 h-4" />
         </button>
       </div>
 
       <div className="w-px h-4 bg-subtle" />
 
-      {/* Tools + Theme Switcher */}
+      {/* Tools, Shelf & Theme Switcher */}
       <div className="flex items-center gap-0.5">
         <button
           onClick={onToggleSplit}
           className={`p-1.5 rounded-md transition ${
             splitView ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
-          title="Toggle Dual-Pane Split View (Ctrl+\)"
+          title="Dual-Pane Split View (Ctrl+\)"
         >
           <Columns2 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onToggleShelf}
+          className={`relative p-1.5 rounded-md transition ${
+            showShelf ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
+          }`}
+          title="Drop Zone Shelf (Ctrl+B)"
+        >
+          <Layers className="w-4 h-4" />
+          {shelfCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-accent text-crust text-[9px] font-bold flex items-center justify-center">
+              {shelfCount}
+            </span>
+          )}
         </button>
         <button
           onClick={onToggleHidden}
@@ -275,18 +316,18 @@ export const TopBar: React.FC<TopBarProps> = ({
           className={`p-1.5 rounded-md transition ${
             showDiskUsage ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
-          title="Disk Usage Breakdown"
+          title="Disk Usage Breakdown (Ctrl+D)"
         >
           <PieChart className="w-4 h-4" />
         </button>
         <button
-          onClick={onTogglePreview}
+          onClick={onToggleQuickLook}
           className={`p-1.5 rounded-md transition ${
-            showPreview ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
+            showQuickLook ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
-          title="Quick Preview (Space)"
+          title="Quick Look Preview (Space)"
         >
-          <PanelRight className="w-4 h-4" />
+          <Search className="w-4 h-4" />
         </button>
         <button
           onClick={onToggleTerminal}

@@ -119,6 +119,12 @@ pub async fn read_preview(path: &Path) -> Result<PreviewData, AppError> {
             mime,
         });
     }
+    if mime.starts_with("video/") {
+        return Ok(PreviewData::Video {
+            url: media_url,
+            mime,
+        });
+    }
     if mime.starts_with("audio/") {
         return Ok(PreviewData::Audio {
             url: media_url,

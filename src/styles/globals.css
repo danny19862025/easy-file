@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "@xterm/xterm/css/xterm.css";
 
-/* Semantic Tailwind v4 tokens mapped to runtime CSS variables */
 @theme inline {
   --color-base: var(--bg-base);
   --color-mantle: var(--bg-mantle);
@@ -19,7 +18,7 @@
   --color-warning: var(--color-amber);
 }
 
-/* Default: Catppuccin Mocha (Warm Dark) */
+/* Catppuccin Mocha (Default) */
 :root,
 [data-theme="catppuccin-mocha"] {
   color-scheme: dark;
@@ -40,27 +39,87 @@
   --glow-accent: rgba(137, 180, 250, 0.22);
 }
 
-/* Tokyo Night (Vibrant Deep Blue-Dark) */
-[data-theme="tokyo-night"] {
-  color-scheme: dark;
-  --bg-base: #1a1b26;
-  --bg-mantle: #16161e;
-  --bg-crust: #101017;
-  --bg-surface: #24283b;
-  --text-main: #c0caf5;
-  --text-muted: #9aa5ce;
-  --accent-primary: #7aa2f7;
-  --accent-folder: #7dcfff;
-  --accent-secondary: #bb9af7;
-  --border-subtle: #3b4261;
-  --border-accent: #7aa2f7;
-  --color-red: #f7768e;
-  --color-green: #9ece6a;
-  --color-amber: #e0af68;
-  --glow-accent: rgba(122, 162, 247, 0.24);
+/* Light (Catppuccin Latte) */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg-base: #eff1f5;
+  --bg-mantle: #e6e9ef;
+  --bg-crust: #dce0e8;
+  --bg-surface: #ccd0da;
+  --text-main: #4c4f69;
+  --text-muted: #6c6f85;
+  --accent-primary: #1e66f5;
+  --accent-folder: #1e66f5;
+  --accent-secondary: #8839ef;
+  --border-subtle: #bcc0cc;
+  --border-accent: #7287fd;
+  --color-red: #d20f39;
+  --color-green: #40a02b;
+  --color-amber: #df8e1d;
+  --glow-accent: rgba(30, 102, 245, 0.16);
 }
 
-/* Nord (Arctic Cool Dark) */
+/* Graphite (Neutral Studio Gray) */
+[data-theme="graphite"] {
+  color-scheme: dark;
+  --bg-base: #1f2023;
+  --bg-mantle: #18191c;
+  --bg-crust: #121315;
+  --bg-surface: #2c2e33;
+  --text-main: #e6e8ec;
+  --text-muted: #9ca3af;
+  --accent-primary: #60a5fa;
+  --accent-folder: #93c5fd;
+  --accent-secondary: #a78bfa;
+  --border-subtle: #383b42;
+  --border-accent: #60a5fa;
+  --color-red: #f87171;
+  --color-green: #4ade80;
+  --color-amber: #fbbf24;
+  --glow-accent: rgba(96, 165, 250, 0.2);
+}
+
+/* Midnight (Deep Obsidian Blue) */
+[data-theme="midnight"] {
+  color-scheme: dark;
+  --bg-base: #0f172a;
+  --bg-mantle: #0b1120;
+  --bg-crust: #060a14;
+  --bg-surface: #1e293b;
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent-primary: #38bdf8;
+  --accent-folder: #38bdf8;
+  --accent-secondary: #818cf8;
+  --border-subtle: #334155;
+  --border-accent: #38bdf8;
+  --color-red: #fb7185;
+  --color-green: #34d399;
+  --color-amber: #fbbf24;
+  --glow-accent: rgba(56, 189, 248, 0.24);
+}
+
+/* Noir (OLED Pure Black) */
+[data-theme="noir"] {
+  color-scheme: dark;
+  --bg-base: #09090b;
+  --bg-mantle: #050507;
+  --bg-crust: #000000;
+  --bg-surface: #18181b;
+  --text-main: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --accent-primary: #e4e4e7;
+  --accent-folder: #a1a1aa;
+  --accent-secondary: #d4d4d8;
+  --border-subtle: #27272a;
+  --border-accent: #71717a;
+  --color-red: #f87171;
+  --color-green: #4ade80;
+  --color-amber: #facc15;
+  --glow-accent: rgba(244, 244, 245, 0.12);
+}
+
+/* Nord */
 [data-theme="nord"] {
   color-scheme: dark;
   --bg-base: #2e3440;
@@ -80,7 +139,27 @@
   --glow-accent: rgba(136, 192, 208, 0.22);
 }
 
-/* Rosé Pine (Soft Warm Dark) */
+/* Dracula */
+[data-theme="dracula"] {
+  color-scheme: dark;
+  --bg-base: #282a36;
+  --bg-mantle: #21222c;
+  --bg-crust: #191a21;
+  --bg-surface: #343746;
+  --text-main: #f8f8f2;
+  --text-muted: #9ea8c7;
+  --accent-primary: #bd93f9;
+  --accent-folder: #8be9fd;
+  --accent-secondary: #ff79c6;
+  --border-subtle: #44475a;
+  --border-accent: #bd93f9;
+  --color-red: #ff5555;
+  --color-green: #50fa7b;
+  --color-amber: #f1fa8c;
+  --glow-accent: rgba(189, 147, 249, 0.24);
+}
+
+/* Rosé Pine */
 [data-theme="rose-pine"] {
   color-scheme: dark;
   --bg-base: #191724;
@@ -95,29 +174,29 @@
   --border-subtle: #403d52;
   --border-accent: #ebbcba;
   --color-red: #eb6f92;
-  --color-green: #31748f;
+  --color-green: #9ccfd8;
   --color-amber: #f6c177;
   --glow-accent: rgba(196, 167, 231, 0.22);
 }
 
-/* Catppuccin Latte (Clean Light Mode) */
-[data-theme="catppuccin-latte"] {
-  color-scheme: light;
-  --bg-base: #eff1f5;
-  --bg-mantle: #e6e9ef;
-  --bg-crust: #dce0e8;
-  --bg-surface: #ccd0da;
-  --text-main: #4c4f69;
-  --text-muted: #6c6f85;
-  --accent-primary: #1e66f5;
-  --accent-folder: #1e66f5;
-  --accent-secondary: #8839ef;
-  --border-subtle: #bcc0cc;
-  --border-accent: #7287fd;
-  --color-red: #d20f39;
-  --color-green: #40a02b;
-  --color-amber: #df8e1d;
-  --glow-accent: rgba(30, 102, 245, 0.16);
+/* Tokyo Night */
+[data-theme="tokyo-night"] {
+  color-scheme: dark;
+  --bg-base: #1a1b26;
+  --bg-mantle: #16161e;
+  --bg-crust: #101017;
+  --bg-surface: #24283b;
+  --text-main: #c0caf5;
+  --text-muted: #9aa5ce;
+  --accent-primary: #7aa2f7;
+  --accent-folder: #7dcfff;
+  --accent-secondary: #bb9af7;
+  --border-subtle: #3b4261;
+  --border-accent: #7aa2f7;
+  --color-red: #f7768e;
+  --color-green: #9ece6a;
+  --color-amber: #e0af68;
+  --glow-accent: rgba(122, 162, 247, 0.24);
 }
 
 @layer base {

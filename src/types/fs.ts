@@ -1,4 +1,4 @@
-export type ViewMode = "grid" | "list" | "column";
+export type ViewMode = "grid" | "list" | "details" | "miller" | "tree";
 
 export interface FileEntry {
   name: string;
@@ -58,6 +58,7 @@ export interface DiskUsageReport {
 export type PreviewData =
   | { kind: "text"; content: string; truncated: boolean; mime: string }
   | { kind: "image"; url: string; mime: string }
+  | { kind: "video"; url: string; mime: string }
   | { kind: "audio"; url: string; mime: string }
   | { kind: "pdf"; url: string }
   | { kind: "binary"; mime: string; size: number };

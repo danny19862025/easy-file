@@ -13,6 +13,7 @@ export interface PaneState {
   tabs: TabState[];
   activeTabId: string;
   selectedPaths: string[];
+  viewMode: ViewMode;
 }
 
 interface ClipboardState {
@@ -24,11 +25,12 @@ interface WorkspaceStore {
   panes: PaneState[];
   activePaneId: string;
   splitView: boolean;
-  viewMode: ViewMode;
+  splitRatio: number;
   showHidden: boolean;
-  showPreview: boolean;
+  showQuickLook: boolean;
   showTerminal: boolean;
   showDiskUsage: boolean;
+  showShelf: boolean;
   pinnedPaths: string[];
   clipboard: ClipboardState | null;
   toast: string | null;
@@ -36,11 +38,15 @@ interface WorkspaceStore {
   initHome: (homePath: string) => void;
   setActivePane: (paneId: string) => void;
   toggleSplitView: () => void;
-  setViewMode: (mode: ViewMode) => void;
+  setSplitRatio: (ratio: number) => void;
+  setPaneViewMode: (paneId: string, mode: ViewMode) => void;
   toggleHidden: () => void;
-  togglePreview: () => void;
+  toggleQuickLook: () => void;
+  setShowQuickLook: (open: boolean) => void;
   toggleTerminal: () => void;
   toggleDiskUsage: () => void;
+  toggleShelf: () => void;
+  setShowShelf: (open: boolean) => void;
 
   navigate: (paneId: string, path: string) => void;
   goBack: (paneId: string) => void;
@@ -67,34 +73,36 @@ function makeTab(path: string): TabState {
   };
 }
 
-function makePane(id: string, path: string): PaneState {
+function makePane(id: string, path: string, viewMode: ViewMode = "grid"): PaneState {
   const tab = makeTab(path);
   return {
     id,
     tabs: [tab],
     activeTabId: tab.id,
     selectedPaths: [],
+    viewMode,
   };
 }
 
 export const useWorkspaceStore = create<WorkspaceStore>((set, get) => {
-  const primary = makePane("pane-left", "/");
+  const primary = makePane("pane-left", "/", "grid");
 
   return {
     panes: [primary],
     activePaneId: primary.id,
     splitView: false,
-    viewMode: "grid",
+    splitRatio: 50,
     showHidden: false,
-    showPreview: false,
+    showQuickLook: false,
     showTerminal: false,
     showDiskUsage: false,
+    showShelf: false,
     pinnedPaths: [],
     clipboard: null,
     toast: null,
 
     initHome: (homePath) => {
-      const first = makePane("pane-left", homePath);
+      const first = makePane("pane-left", homePath, "grid");
       set({ panes: [first], activePaneId: first.id });
     },
 
@@ -105,18 +113,27 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => {
       if (!splitView) {
         const left = panes[0];
         const leftTab = left.tabs.find((t) => t.id === left.activeTabId) ?? left.tabs[0];
-        const right = makePane("pane-right", leftTab.path);
-        set({ splitView: true, panes: [left, right], activePaneId: right.id });
+        const right = makePane("pane-right", leftTab.path, left.viewMode);
+        set({ splitView: true, splitRatio: 50, panes: [left, right], activePaneId: right.id });
       } else {
         set({ splitView: false, panes: [panes[0]], activePaneId: panes[0].id });
       }
     },
 
-    setViewMode: (viewMode) => set({ viewMode }),
+    setSplitRatio: (ratio) => set({ splitRatio: Math.min(80, Math.max(20, ratio)) }),
+
+    setPaneViewMode: (paneId, mode) =>
+      set((state) => ({
+        panes: state.panes.map((p) => (p.id === paneId ? { ...p, viewMode: mode } : p)),
+      })),
+
     toggleHidden: () => set((s) => ({ showHidden: !s.showHidden })),
-    togglePreview: () => set((s) => ({ showPreview: !s.showPreview })),
+    toggleQuickLook: () => set((s) => ({ showQuickLook: !s.showQuickLook })),
+    setShowQuickLook: (showQuickLook) => set({ showQuickLook }),
     toggleTerminal: () => set((s) => ({ showTerminal: !s.showTerminal })),
     toggleDiskUsage: () => set((s) => ({ showDiskUsage: !s.showDiskUsage })),
+    toggleShelf: () => set((s) => ({ showShelf: !s.showShelf })),
+    setShowShelf: (showShelf) => set({ showShelf }),
 
     navigate: (paneId, nextPath) =>
       set((state) => ({
