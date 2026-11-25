@@ -3,4 +3,5 @@ pub mod disk_usage;
 pub mod fs_ops;
 pub mod mounts;
 pub mod pty;
+pub mod search_index;
 pub mod watcher;

@@ -13,6 +13,8 @@ import { TerminalDrawer } from "../terminal/TerminalDrawer";
 import { DiskUsageOverlay } from "../disk/DiskUsageOverlay";
 import { ThemeSwitcherModal } from "../settings/ThemeSwitcherModal";
 import { ShortcutsModal } from "../settings/ShortcutsModal";
+import { PromptDialogConfig, PromptModal } from "../modals/PromptModal";
+import { FuzzySearchModal } from "../search/FuzzySearchModal";
 import { baseName, parentPath } from "../../lib/format";
 
 export const ExplorerLayout: React.FC = () => {
@@ -24,6 +26,8 @@ export const ExplorerLayout: React.FC = () => {
   const [activeEntries, setActiveEntries] = useState<FileEntry[]>([]);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [promptDialog, setPromptDialog] = useState<PromptDialogConfig | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [focusPathSignal, setFocusPathSignal] = useState(0);
   const [reloadSignal, setReloadSignal] = useState(0);
@@ -64,39 +68,64 @@ export const ExplorerLayout: React.FC = () => {
     window.addEventListener("mouseup", onUp);
   };
 
-  const handleCreateFolder = useCallback(async () => {
-    const name = window.prompt("New folder name:");
-    if (!name?.trim()) return;
-    try {
-      await invoke("create_dir", { parent: activeTab.path, name: name.trim() });
-      store.showToast(`Created folder "${name.trim()}"`);
-    } catch (err) {
-      store.showToast(String(err));
-    }
+  const handleCreateFolder = useCallback(() => {
+    setPromptDialog({
+      kind: "input",
+      icon: "folder",
+      title: "New Folder",
+      placeholder: "Enter folder name…",
+      confirmLabel: "Create Folder",
+      onSubmit: async (name) => {
+        try {
+          await invoke("create_dir", { parent: activeTab.path, name });
+          setReloadSignal((n) => n + 1);
+          store.showToast(`Created folder "${name}"`);
+        } catch (err) {
+          store.showToast(String(err));
+        }
+      },
+    });
   }, [activeTab.path, store]);
 
-  const handleCreateFile = useCallback(async () => {
-    const name = window.prompt("New file name:");
-    if (!name?.trim()) return;
-    try {
-      await invoke("create_file", { parent: activeTab.path, name: name.trim() });
-      store.showToast(`Created file "${name.trim()}"`);
-    } catch (err) {
-      store.showToast(String(err));
-    }
+  const handleCreateFile = useCallback(() => {
+    setPromptDialog({
+      kind: "input",
+      icon: "file",
+      title: "New File",
+      placeholder: "Enter file name (e.g. notes.md)…",
+      confirmLabel: "Create File",
+      onSubmit: async (name) => {
+        try {
+          await invoke("create_file", { parent: activeTab.path, name });
+          setReloadSignal((n) => n + 1);
+          store.showToast(`Created file "${name}"`);
+        } catch (err) {
+          store.showToast(String(err));
+        }
+      },
+    });
   }, [activeTab.path, store]);
 
-  const handleRename = useCallback(async () => {
+  const handleRename = useCallback(() => {
     if (activePane.selectedPaths.length !== 1) return;
     const target = activePane.selectedPaths[0];
-    const nextName = window.prompt("Rename to:", baseName(target));
-    if (!nextName?.trim()) return;
-    try {
-      await invoke("rename_entry", { path: target, newName: nextName.trim() });
-      store.showToast(`Renamed to "${nextName.trim()}"`);
-    } catch (err) {
-      store.showToast(String(err));
-    }
+    setPromptDialog({
+      kind: "input",
+      icon: "rename",
+      title: "Rename Item",
+      placeholder: "New name…",
+      initialValue: baseName(target),
+      confirmLabel: "Rename",
+      onSubmit: async (newName) => {
+        try {
+          await invoke("rename_entry", { path: target, newName });
+          setReloadSignal((n) => n + 1);
+          store.showToast(`Renamed to "${newName}"`);
+        } catch (err) {
+          store.showToast(String(err));
+        }
+      },
+    });
   }, [activePane.selectedPaths, store]);
 
   const handleTrash = useCallback(async () => {
@@ -104,25 +133,33 @@ export const ExplorerLayout: React.FC = () => {
     try {
       await invoke("move_to_trash", { paths: activePane.selectedPaths });
       store.setSelection(activePane.id, []);
+      setReloadSignal((n) => n + 1);
       store.showToast(`Moved ${activePane.selectedPaths.length} item(s) to Trash`);
     } catch (err) {
       store.showToast(String(err));
     }
   }, [activePane.id, activePane.selectedPaths, store]);
 
-  const handleDeletePermanent = useCallback(async () => {
+  const handleDeletePermanent = useCallback(() => {
     if (activePane.selectedPaths.length === 0) return;
-    const confirmed = window.confirm(
-      `Permanently delete ${activePane.selectedPaths.length} item(s)? This cannot be undone.`
-    );
-    if (!confirmed) return;
-    try {
-      await invoke("delete_permanent", { paths: activePane.selectedPaths });
-      store.setSelection(activePane.id, []);
-      store.showToast(`Permanently deleted ${activePane.selectedPaths.length} item(s)`);
-    } catch (err) {
-      store.showToast(String(err));
-    }
+    const pathsToDelete = [...activePane.selectedPaths];
+    setPromptDialog({
+      kind: "confirm",
+      title: "Delete Permanently",
+      message: `Permanently delete ${pathsToDelete.length} item(s)? This cannot be undone.`,
+      confirmLabel: "Delete Permanently",
+      danger: true,
+      onConfirm: async () => {
+        try {
+          await invoke("delete_permanent", { paths: pathsToDelete });
+          store.setSelection(activePane.id, []);
+          setReloadSignal((n) => n + 1);
+          store.showToast(`Permanently deleted ${pathsToDelete.length} item(s)`);
+        } catch (err) {
+          store.showToast(String(err));
+        }
+      },
+    });
   }, [activePane.id, activePane.selectedPaths, store]);
 
   const handlePaste = useCallback(
@@ -193,6 +230,8 @@ export const ExplorerLayout: React.FC = () => {
       const ctrl = e.ctrlKey || e.metaKey;
 
       if (e.key === "Escape") {
+        if (promptDialog) return setPromptDialog(null);
+        if (showSearchModal) return setShowSearchModal(false);
         if (store.showQuickLook) return store.setShowQuickLook(false);
         if (showThemeModal) return setShowThemeModal(false);
         if (showShortcutsModal) return setShowShortcutsModal(false);
@@ -200,6 +239,12 @@ export const ExplorerLayout: React.FC = () => {
         if (activePane.selectedPaths.length > 0) {
           store.setSelection(activePane.id, []);
         }
+        return;
+      }
+
+      if ((ctrl && key === "f") || (!ctrl && !e.altKey && e.key === "/")) {
+        e.preventDefault();
+        setShowSearchModal(true);
         return;
       }
 
@@ -371,6 +416,7 @@ export const ExplorerLayout: React.FC = () => {
           onToggleShelf={store.toggleShelf}
           onOpenThemeModal={() => setShowThemeModal(true)}
           onOpenShortcutsModal={() => setShowShortcutsModal(true)}
+          onOpenSearchModal={() => setShowSearchModal(true)}
           focusPathSignal={focusPathSignal}
         />
 
@@ -448,6 +494,23 @@ export const ExplorerLayout: React.FC = () => {
 
       {showThemeModal && <ThemeSwitcherModal onClose={() => setShowThemeModal(false)} />}
       {showShortcutsModal && <ShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
+      {promptDialog && (
+        <PromptModal config={promptDialog} onClose={() => setPromptDialog(null)} />
+      )}
+      {showSearchModal && (
+        <FuzzySearchModal
+          rootPath={activeTab.path}
+          onClose={() => setShowSearchModal(false)}
+          onSelectHit={(hit) => {
+            if (hit.isDir) {
+              store.navigate(activePane.id, hit.path);
+            } else {
+              store.navigate(activePane.id, hit.parentDir);
+              setTimeout(() => store.setSelection(activePane.id, [hit.path]), 80);
+            }
+          }}
+        />
+      )}
 
       {contextMenu && (
         <ContextMenu

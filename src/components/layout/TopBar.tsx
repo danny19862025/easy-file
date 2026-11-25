@@ -53,6 +53,7 @@ interface TopBarProps {
   onToggleShelf: () => void;
   onOpenThemeModal: () => void;
   onOpenShortcutsModal: () => void;
+  onOpenSearchModal: () => void;
   focusPathSignal: number;
 }
 
@@ -84,6 +85,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleShelf,
   onOpenThemeModal,
   onOpenShortcutsModal,
+  onOpenSearchModal,
   focusPathSignal,
 }) => {
   const { theme } = useTheme();
@@ -321,13 +323,12 @@ export const TopBar: React.FC<TopBarProps> = ({
           <PieChart className="w-4 h-4" />
         </button>
         <button
-          onClick={onToggleQuickLook}
-          className={`p-1.5 rounded-md transition ${
-            showQuickLook ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
-          }`}
-          title="Quick Look Preview (Space)"
+          onClick={onOpenSearchModal}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-subtle bg-surface/60 hover:bg-surface hover:border-selected text-xs text-main transition"
+          title="Instant Fuzzy Search (Ctrl+F or /)"
         >
-          <Search className="w-4 h-4" />
+          <Search className="w-3.5 h-3.5 text-accent" />
+          <span className="hidden lg:inline text-muted">Search</span>
         </button>
         <button
           onClick={onToggleTerminal}

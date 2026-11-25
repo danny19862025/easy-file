@@ -7,7 +7,7 @@ use crate::error::AppError;
 use crate::models::entry::{
     DirStreamEvent, DiskUsageReport, MountPoint, PreviewData, UserDirsInfo,
 };
-use crate::services::{dir_reader, disk_usage, fs_ops, mounts, pty, watcher};
+use crate::services::{dir_reader, disk_usage, fs_ops, mounts, pty, search_index, watcher};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -76,18 +76,54 @@ pub async fn list_mounts() -> Vec<MountPoint> {
 }
 
 #[tauri::command]
-pub async fn create_dir(parent: String, name: String) -> Result<String, AppError> {
-    fs_ops::create_dir(&PathBuf::from(parent), &name).await
+pub async fn create_dir(
+    state: State<'_, AppState>,
+    parent: String,
+    name: String,
+) -> Result<String, AppError> {
+    let created = fs_ops::create_dir(&PathBuf::from(parent), &name).await?;
+    search_index::invalidate_cache(&state).await;
+    Ok(created)
 }
 
 #[tauri::command]
-pub async fn create_file(parent: String, name: String) -> Result<String, AppError> {
-    fs_ops::create_file(&PathBuf::from(parent), &name).await
+pub async fn create_file(
+    state: State<'_, AppState>,
+    parent: String,
+    name: String,
+) -> Result<String, AppError> {
+    let created = fs_ops::create_file(&PathBuf::from(parent), &name).await?;
+    search_index::invalidate_cache(&state).await;
+    Ok(created)
 }
 
 #[tauri::command]
-pub async fn rename_entry(path: String, new_name: String) -> Result<String, AppError> {
-    fs_ops::rename_entry(&PathBuf::from(path), &new_name).await
+pub async fn rename_entry(
+    state: State<'_, AppState>,
+    path: String,
+    new_name: String,
+) -> Result<String, AppError> {
+    let renamed = fs_ops::rename_entry(&PathBuf::from(path), &new_name).await?;
+    search_index::invalidate_cache(&state).await;
+    Ok(renamed)
+}
+
+#[tauri::command]
+pub async fn fuzzy_search(
+    state: State<'_, AppState>,
+    root: String,
+    query: String,
+    limit: Option<usize>,
+    force_reindex: Option<bool>,
+) -> Result<search_index::SearchResponse, AppError> {
+    search_index::fuzzy_search(
+        &state,
+        PathBuf::from(root),
+        query,
+        limit.unwrap_or(60),
+        force_reindex.unwrap_or(false),
+    )
+    .await
 }
 
 #[tauri::command]

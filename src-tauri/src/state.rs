@@ -8,6 +8,8 @@ use portable_pty::MasterPty;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
+use crate::services::search_index::IndexedEntry;
+
 pub struct PtyHandle {
     pub master: Box<dyn MasterPty + Send>,
     pub writer: Box<dyn Write + Send>,
@@ -18,4 +20,5 @@ pub struct AppState {
     pub dir_scan_tokens: Mutex<HashMap<String, CancellationToken>>,
     pub watchers: Mutex<HashMap<String, Debouncer<RecommendedWatcher>>>,
     pub pty_sessions: Arc<Mutex<HashMap<String, PtyHandle>>>,
+    pub search_cache: Mutex<HashMap<String, Vec<IndexedEntry>>>,
 }

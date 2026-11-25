@@ -30,6 +30,7 @@ pub fn run() {
             commands::read_preview,
             commands::open_with_default,
             commands::analyze_disk_usage,
+            commands::fuzzy_search,
             commands::spawn_pty,
             commands::write_pty,
             commands::resize_pty,
