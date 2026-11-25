@@ -29,7 +29,9 @@ interface ExplorerPaneProps {
   onSelectTab: (tabId: string) => void;
   onSelectPaths: (paths: string[]) => void;
   onActiveEntryChange: (entry: FileEntry | null) => void;
+  onActiveEntriesChange: (entries: FileEntry[]) => void;
   onDropEntries: (sources: string[], destDir: string) => void;
+  reloadSignal: number;
 }
 
 function EntryIcon({ entry, size = "md" }: { entry: FileEntry; size?: "sm" | "md" }) {
@@ -69,16 +71,30 @@ export const ExplorerPane: React.FC<ExplorerPaneProps> = ({
   onSelectTab,
   onSelectPaths,
   onActiveEntryChange,
+  onActiveEntriesChange,
   onDropEntries,
+  reloadSignal,
 }) => {
   const activeTab = pane.tabs.find((t) => t.id === pane.activeTabId) ?? pane.tabs[0];
-  const { entries, isLoading, elapsedMs, error } = useDirectoryStream(
+  const { entries, isLoading, elapsedMs, error, reload } = useDirectoryStream(
     pane.id,
     activeTab.path,
     showHidden
   );
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
   const listParentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isActive && reloadSignal > 0) {
+      reload();
+    }
+  }, [isActive, reloadSignal]);
+
+  useEffect(() => {
+    if (isActive) {
+      onActiveEntriesChange(entries);
+    }
+  }, [isActive, entries, onActiveEntriesChange]);
 
   const rowVirtualizer = useVirtualizer({
     count: entries.length,

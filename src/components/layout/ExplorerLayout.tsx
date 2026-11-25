@@ -9,14 +9,19 @@ import { QuickPreviewPanel } from "../preview/QuickPreviewPanel";
 import { TerminalDrawer } from "../terminal/TerminalDrawer";
 import { DiskUsageOverlay } from "../disk/DiskUsageOverlay";
 import { ThemeSwitcherModal } from "../settings/ThemeSwitcherModal";
-import { baseName } from "../../lib/format";
+import { ShortcutsModal } from "../settings/ShortcutsModal";
+import { baseName, parentPath } from "../../lib/format";
 
 export const ExplorerLayout: React.FC = () => {
   const store = useWorkspaceStore();
   const [userDirs, setUserDirs] = useState<UserDirsInfo | null>(null);
   const [mounts, setMounts] = useState<MountPoint[]>([]);
   const [activeEntry, setActiveEntry] = useState<FileEntry | null>(null);
+  const [activeEntries, setActiveEntries] = useState<FileEntry[]>([]);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [focusPathSignal, setFocusPathSignal] = useState(0);
+  const [reloadSignal, setReloadSignal] = useState(0);
 
   const activePane = store.panes.find((p) => p.id === store.activePaneId) ?? store.panes[0];
   const activeTab =
@@ -81,6 +86,21 @@ export const ExplorerLayout: React.FC = () => {
     }
   }, [activePane.id, activePane.selectedPaths, store]);
 
+  const handleDeletePermanent = useCallback(async () => {
+    if (activePane.selectedPaths.length === 0) return;
+    const confirmed = window.confirm(
+      `Permanently delete ${activePane.selectedPaths.length} item(s)? This cannot be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      await invoke("delete_permanent", { paths: activePane.selectedPaths });
+      store.setSelection(activePane.id, []);
+      store.showToast(`Permanently deleted ${activePane.selectedPaths.length} item(s)`);
+    } catch (err) {
+      store.showToast(String(err));
+    }
+  }, [activePane.id, activePane.selectedPaths, store]);
+
   const handlePaste = useCallback(async () => {
     const clip = store.clipboard;
     if (!clip || clip.paths.length === 0) return;
@@ -110,61 +130,155 @@ export const ExplorerLayout: React.FC = () => {
     [store]
   );
 
+  // Comprehensive Linux File Manager Keyboard Shortcuts
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+      const inInput =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.closest(".xterm") !== null);
+      if (inInput) return;
 
-      if (e.code === "Space") {
+      const key = e.key.toLowerCase();
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      // Escape closes modals or clears selection
+      if (e.key === "Escape") {
+        if (showThemeModal) return setShowThemeModal(false);
+        if (showShortcutsModal) return setShowShortcutsModal(false);
+        if (store.showDiskUsage) return store.toggleDiskUsage();
+        if (activePane.selectedPaths.length > 0) {
+          store.setSelection(activePane.id, []);
+        }
+        return;
+      }
+
+      // Shortcuts Modal: Ctrl+/ or ?
+      if ((ctrl && e.key === "/") || (!ctrl && e.key === "?")) {
         e.preventDefault();
-        store.togglePreview();
-      } else if (e.ctrlKey && e.key === "h") {
+        setShowShortcutsModal((v) => !v);
+        return;
+      }
+
+      // File Operations
+      if (ctrl && key === "c" && activePane.selectedPaths.length > 0) {
         e.preventDefault();
-        store.toggleHidden();
-      } else if (e.ctrlKey && e.key === "`") {
+        store.setClipboard({ mode: "copy", paths: activePane.selectedPaths });
+        store.showToast(`Copied ${activePane.selectedPaths.length} item(s)`);
+      } else if (ctrl && key === "x" && activePane.selectedPaths.length > 0) {
         e.preventDefault();
-        store.toggleTerminal();
-      } else if (e.ctrlKey && e.key === "\\") {
+        store.setClipboard({ mode: "cut", paths: activePane.selectedPaths });
+        store.showToast(`Cut ${activePane.selectedPaths.length} item(s)`);
+      } else if (ctrl && key === "v") {
         e.preventDefault();
-        store.toggleSplitView();
-      } else if (e.ctrlKey && e.key === ",") {
+        handlePaste();
+      } else if (ctrl && key === "a") {
         e.preventDefault();
-        setShowThemeModal((v) => !v);
-      } else if (e.ctrlKey && e.key === "t") {
+        store.setSelection(
+          activePane.id,
+          activeEntries.map((entry) => entry.path)
+        );
+      } else if (ctrl && e.shiftKey && key === "n") {
         e.preventDefault();
-        store.addTab(activePane.id);
-      } else if (e.ctrlKey && e.key === "w") {
+        handleCreateFolder();
+      } else if (ctrl && e.altKey && key === "n") {
         e.preventDefault();
-        store.closeTab(activePane.id, activeTab.id);
+        handleCreateFile();
+      } else if (e.key === "F2") {
+        e.preventDefault();
+        handleRename();
+      } else if (e.key === "Delete" && e.shiftKey) {
+        e.preventDefault();
+        handleDeletePermanent();
+      } else if (e.key === "Delete") {
+        e.preventDefault();
+        handleTrash();
+      } else if (e.key === "Enter" && activeEntry) {
+        e.preventDefault();
+        if (activeEntry.isDir) {
+          store.navigate(activePane.id, activeEntry.path);
+        } else {
+          invoke("open_with_default", { path: activeEntry.path }).catch(() => {});
+        }
+      }
+      // Navigation & Tabs
+      else if (ctrl && key === "l") {
+        e.preventDefault();
+        setFocusPathSignal((n) => n + 1);
       } else if (e.altKey && e.key === "ArrowLeft") {
         e.preventDefault();
         store.goBack(activePane.id);
       } else if (e.altKey && e.key === "ArrowRight") {
         e.preventDefault();
         store.goForward(activePane.id);
-      } else if (e.key === "F2") {
+      } else if ((e.altKey && e.key === "ArrowUp") || (!ctrl && !e.altKey && e.key === "Backspace")) {
         e.preventDefault();
-        handleRename();
-      } else if (e.key === "Delete") {
+        store.navigate(activePane.id, parentPath(activeTab.path));
+      } else if (ctrl && key === "t") {
         e.preventDefault();
-        handleTrash();
-      } else if (e.ctrlKey && e.key === "c" && activePane.selectedPaths.length > 0) {
+        store.addTab(activePane.id);
+      } else if (ctrl && key === "w") {
         e.preventDefault();
-        store.setClipboard({ mode: "copy", paths: activePane.selectedPaths });
-        store.showToast(`Copied ${activePane.selectedPaths.length} item(s)`);
-      } else if (e.ctrlKey && e.key === "x" && activePane.selectedPaths.length > 0) {
+        store.closeTab(activePane.id, activeTab.id);
+      } else if (ctrl && e.key === "Tab" && activePane.tabs.length > 1) {
         e.preventDefault();
-        store.setClipboard({ mode: "cut", paths: activePane.selectedPaths });
-        store.showToast(`Cut ${activePane.selectedPaths.length} item(s)`);
-      } else if (e.ctrlKey && e.key === "v") {
+        const idx = activePane.tabs.findIndex((t) => t.id === activeTab.id);
+        const nextIdx = (idx + 1) % activePane.tabs.length;
+        store.setActiveTab(activePane.id, activePane.tabs[nextIdx].id);
+      } else if (e.key === "F5" || (ctrl && key === "r")) {
         e.preventDefault();
-        handlePaste();
+        setReloadSignal((n) => n + 1);
+      }
+      // Views & Panels
+      else if (ctrl && e.key === "1") {
+        e.preventDefault();
+        store.setViewMode("grid");
+      } else if (ctrl && e.key === "2") {
+        e.preventDefault();
+        store.setViewMode("list");
+      } else if (ctrl && e.key === "3") {
+        e.preventDefault();
+        store.setViewMode("column");
+      } else if (e.code === "Space") {
+        e.preventDefault();
+        store.togglePreview();
+      } else if (ctrl && key === "h") {
+        e.preventDefault();
+        store.toggleHidden();
+      } else if (ctrl && e.key === "\\") {
+        e.preventDefault();
+        store.toggleSplitView();
+      } else if (ctrl && key === "d") {
+        e.preventDefault();
+        store.toggleDiskUsage();
+      } else if (ctrl && e.key === "`") {
+        e.preventDefault();
+        store.toggleTerminal();
+      } else if (ctrl && e.key === ",") {
+        e.preventDefault();
+        setShowThemeModal((v) => !v);
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activePane, activeTab, store, handleRename, handleTrash, handlePaste]);
+  }, [
+    activePane,
+    activeTab,
+    activeEntry,
+    activeEntries,
+    showThemeModal,
+    showShortcutsModal,
+    store,
+    handleCreateFolder,
+    handleCreateFile,
+    handleRename,
+    handleTrash,
+    handleDeletePermanent,
+    handlePaste,
+  ]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-base text-main select-none">
@@ -202,6 +316,8 @@ export const ExplorerLayout: React.FC = () => {
           onToggleTerminal={store.toggleTerminal}
           onToggleDiskUsage={store.toggleDiskUsage}
           onOpenThemeModal={() => setShowThemeModal(true)}
+          onOpenShortcutsModal={() => setShowShortcutsModal(true)}
+          focusPathSignal={focusPathSignal}
         />
 
         <div className="flex-1 flex min-h-0">
@@ -219,7 +335,9 @@ export const ExplorerLayout: React.FC = () => {
               onSelectTab={(tabId) => store.setActiveTab(pane.id, tabId)}
               onSelectPaths={(paths) => store.setSelection(pane.id, paths)}
               onActiveEntryChange={setActiveEntry}
+              onActiveEntriesChange={setActiveEntries}
               onDropEntries={handleDropEntries}
+              reloadSignal={reloadSignal}
             />
           ))}
 
@@ -242,6 +360,7 @@ export const ExplorerLayout: React.FC = () => {
       )}
 
       {showThemeModal && <ThemeSwitcherModal onClose={() => setShowThemeModal(false)} />}
+      {showShortcutsModal && <ShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
 
       {store.toast && (
         <div className="fixed bottom-10 right-6 z-50 px-3.5 py-2 rounded-lg border border-selected/60 bg-mantle/95 backdrop-blur-md text-xs text-main shadow-xl">

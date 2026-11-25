@@ -9,6 +9,7 @@ import {
   EyeOff,
   FilePlus,
   FolderPlus,
+  Keyboard,
   LayoutGrid,
   List,
   Palette,
@@ -45,6 +46,8 @@ interface TopBarProps {
   onToggleTerminal: () => void;
   onToggleDiskUsage: () => void;
   onOpenThemeModal: () => void;
+  onOpenShortcutsModal: () => void;
+  focusPathSignal: number;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -71,6 +74,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleTerminal,
   onToggleDiskUsage,
   onOpenThemeModal,
+  onOpenShortcutsModal,
+  focusPathSignal,
 }) => {
   const { theme } = useTheme();
   const [editing, setEditing] = useState(false);
@@ -80,6 +85,13 @@ export const TopBar: React.FC<TopBarProps> = ({
     setDraft(currentPath);
     setEditing(false);
   }, [currentPath]);
+
+  useEffect(() => {
+    if (focusPathSignal > 0) {
+      setDraft(currentPath);
+      setEditing(true);
+    }
+  }, [focusPathSignal, currentPath]);
 
   const segments = currentPath.split("/").filter(Boolean);
 
@@ -289,9 +301,17 @@ export const TopBar: React.FC<TopBarProps> = ({
         <div className="w-px h-4 bg-subtle mx-0.5" />
 
         <button
+          onClick={onOpenShortcutsModal}
+          className="p-1.5 rounded-md text-muted hover:bg-surface hover:text-main transition"
+          title="Keyboard Shortcuts (Ctrl+/)"
+        >
+          <Keyboard className="w-4 h-4" />
+        </button>
+
+        <button
           onClick={onOpenThemeModal}
           className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-subtle bg-surface/60 hover:bg-surface hover:border-selected text-xs text-main transition"
-          title={`Theme: ${theme.name}`}
+          title={`Theme: ${theme.name} (Ctrl+,)`}
         >
           <Palette className="w-3.5 h-3.5 text-secondary" />
           <span className="hidden xl:inline">{theme.name}</span>
