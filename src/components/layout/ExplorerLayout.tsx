@@ -8,6 +8,7 @@ import { ExplorerPane } from "../explorer/ExplorerPane";
 import { QuickPreviewPanel } from "../preview/QuickPreviewPanel";
 import { TerminalDrawer } from "../terminal/TerminalDrawer";
 import { DiskUsageOverlay } from "../disk/DiskUsageOverlay";
+import { ThemeSwitcherModal } from "../settings/ThemeSwitcherModal";
 import { baseName } from "../../lib/format";
 
 export const ExplorerLayout: React.FC = () => {
@@ -15,6 +16,7 @@ export const ExplorerLayout: React.FC = () => {
   const [userDirs, setUserDirs] = useState<UserDirsInfo | null>(null);
   const [mounts, setMounts] = useState<MountPoint[]>([]);
   const [activeEntry, setActiveEntry] = useState<FileEntry | null>(null);
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   const activePane = store.panes.find((p) => p.id === store.activePaneId) ?? store.panes[0];
   const activeTab =
@@ -108,7 +110,6 @@ export const ExplorerLayout: React.FC = () => {
     [store]
   );
 
-  // Global Linux File Manager Keyboard Shortcuts
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -126,6 +127,9 @@ export const ExplorerLayout: React.FC = () => {
       } else if (e.ctrlKey && e.key === "\\") {
         e.preventDefault();
         store.toggleSplitView();
+      } else if (e.ctrlKey && e.key === ",") {
+        e.preventDefault();
+        setShowThemeModal((v) => !v);
       } else if (e.ctrlKey && e.key === "t") {
         e.preventDefault();
         store.addTab(activePane.id);
@@ -163,7 +167,7 @@ export const ExplorerLayout: React.FC = () => {
   }, [activePane, activeTab, store, handleRename, handleTrash, handlePaste]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 select-none">
+    <div className="flex h-screen w-screen overflow-hidden bg-base text-main select-none">
       <Sidebar
         userDirs={userDirs}
         mounts={mounts}
@@ -197,6 +201,7 @@ export const ExplorerLayout: React.FC = () => {
           onTogglePreview={store.togglePreview}
           onToggleTerminal={store.toggleTerminal}
           onToggleDiskUsage={store.toggleDiskUsage}
+          onOpenThemeModal={() => setShowThemeModal(true)}
         />
 
         <div className="flex-1 flex min-h-0">
@@ -236,8 +241,10 @@ export const ExplorerLayout: React.FC = () => {
         />
       )}
 
+      {showThemeModal && <ThemeSwitcherModal onClose={() => setShowThemeModal(false)} />}
+
       {store.toast && (
-        <div className="fixed bottom-10 right-6 z-50 px-3.5 py-2 rounded-lg border border-white/15 bg-zinc-900/95 backdrop-blur-md text-xs text-zinc-100 shadow-xl">
+        <div className="fixed bottom-10 right-6 z-50 px-3.5 py-2 rounded-lg border border-selected/60 bg-mantle/95 backdrop-blur-md text-xs text-main shadow-xl">
           {store.toast}
         </div>
       )}

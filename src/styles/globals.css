@@ -1,11 +1,161 @@
 @import "tailwindcss";
 @import "@xterm/xterm/css/xterm.css";
 
+/* Semantic Tailwind v4 tokens mapped to runtime CSS variables */
+@theme inline {
+  --color-base: var(--bg-base);
+  --color-mantle: var(--bg-mantle);
+  --color-crust: var(--bg-crust);
+  --color-surface: var(--bg-surface);
+  --color-main: var(--text-main);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent-primary);
+  --color-folder: var(--accent-folder);
+  --color-secondary: var(--accent-secondary);
+  --color-subtle: var(--border-subtle);
+  --color-selected: var(--border-accent);
+  --color-danger: var(--color-red);
+  --color-success: var(--color-green);
+  --color-warning: var(--color-amber);
+}
+
+/* Default: Catppuccin Mocha (Warm Dark) */
+:root,
+[data-theme="catppuccin-mocha"] {
+  color-scheme: dark;
+  --bg-base: #1e1e2e;
+  --bg-mantle: #181825;
+  --bg-crust: #11111b;
+  --bg-surface: #313244;
+  --text-main: #cdd6f4;
+  --text-muted: #a6adc8;
+  --accent-primary: #89b4fa;
+  --accent-folder: #89b4fa;
+  --accent-secondary: #cba6f7;
+  --border-subtle: #45475a;
+  --border-accent: #b4befe;
+  --color-red: #f38ba8;
+  --color-green: #a6e3a1;
+  --color-amber: #f9e2af;
+  --glow-accent: rgba(137, 180, 250, 0.22);
+}
+
+/* Tokyo Night (Vibrant Deep Blue-Dark) */
+[data-theme="tokyo-night"] {
+  color-scheme: dark;
+  --bg-base: #1a1b26;
+  --bg-mantle: #16161e;
+  --bg-crust: #101017;
+  --bg-surface: #24283b;
+  --text-main: #c0caf5;
+  --text-muted: #9aa5ce;
+  --accent-primary: #7aa2f7;
+  --accent-folder: #7dcfff;
+  --accent-secondary: #bb9af7;
+  --border-subtle: #3b4261;
+  --border-accent: #7aa2f7;
+  --color-red: #f7768e;
+  --color-green: #9ece6a;
+  --color-amber: #e0af68;
+  --glow-accent: rgba(122, 162, 247, 0.24);
+}
+
+/* Nord (Arctic Cool Dark) */
+[data-theme="nord"] {
+  color-scheme: dark;
+  --bg-base: #2e3440;
+  --bg-mantle: #272c36;
+  --bg-crust: #21252e;
+  --bg-surface: #3b4252;
+  --text-main: #eceff4;
+  --text-muted: #d8dee9;
+  --accent-primary: #88c0d0;
+  --accent-folder: #81a1c1;
+  --accent-secondary: #b48ead;
+  --border-subtle: #4c566a;
+  --border-accent: #8fbcbb;
+  --color-red: #bf616a;
+  --color-green: #a3be8c;
+  --color-amber: #ebcb8b;
+  --glow-accent: rgba(136, 192, 208, 0.22);
+}
+
+/* Rosé Pine (Soft Warm Dark) */
+[data-theme="rose-pine"] {
+  color-scheme: dark;
+  --bg-base: #191724;
+  --bg-mantle: #1f1d2e;
+  --bg-crust: #14121d;
+  --bg-surface: #26233a;
+  --text-main: #e0def4;
+  --text-muted: #908caa;
+  --accent-primary: #c4a7e7;
+  --accent-folder: #ebbcba;
+  --accent-secondary: #9ccfd8;
+  --border-subtle: #403d52;
+  --border-accent: #ebbcba;
+  --color-red: #eb6f92;
+  --color-green: #31748f;
+  --color-amber: #f6c177;
+  --glow-accent: rgba(196, 167, 231, 0.22);
+}
+
+/* Catppuccin Latte (Clean Light Mode) */
+[data-theme="catppuccin-latte"] {
+  color-scheme: light;
+  --bg-base: #eff1f5;
+  --bg-mantle: #e6e9ef;
+  --bg-crust: #dce0e8;
+  --bg-surface: #ccd0da;
+  --text-main: #4c4f69;
+  --text-muted: #6c6f85;
+  --accent-primary: #1e66f5;
+  --accent-folder: #1e66f5;
+  --accent-secondary: #8839ef;
+  --border-subtle: #bcc0cc;
+  --border-accent: #7287fd;
+  --color-red: #d20f39;
+  --color-green: #40a02b;
+  --color-amber: #df8e1d;
+  --glow-accent: rgba(30, 102, 245, 0.16);
+}
+
 @layer base {
+  html,
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+    scrollbar-color: var(--border-subtle) transparent;
   }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border-subtle);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--border-accent);
+  }
+}
+
+.item-hover-glow:hover {
+  box-shadow: 0 0 0 1px var(--border-accent), 0 4px 16px var(--glow-accent);
 }
 
 .no-scrollbar::-webkit-scrollbar {

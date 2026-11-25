@@ -3,6 +3,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { X } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
 
 interface TerminalDrawerProps {
   cwd: string;
@@ -10,7 +11,9 @@ interface TerminalDrawerProps {
 }
 
 export const TerminalDrawer: React.FC<TerminalDrawerProps> = ({ cwd, onClose }) => {
+  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
+  const termRef = useRef<Terminal | null>(null);
   const sessionIdRef = useRef(`pty-${Date.now()}`);
   const lastCwdRef = useRef(cwd);
 
@@ -23,12 +26,9 @@ export const TerminalDrawer: React.FC<TerminalDrawerProps> = ({ cwd, onClose }) 
       cursorBlink: true,
       fontSize: 13,
       fontFamily: "JetBrains Mono, Fira Code, monospace",
-      theme: {
-        background: "#09090b",
-        foreground: "#e4e4e7",
-        cursor: "#60a5fa",
-      },
+      theme: theme.terminal,
     });
+    termRef.current = term;
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(el);
@@ -61,11 +61,18 @@ export const TerminalDrawer: React.FC<TerminalDrawerProps> = ({ cwd, onClose }) 
       resizeObserver.disconnect();
       dataSub.dispose();
       term.dispose();
+      termRef.current = null;
       invoke("close_pty", { sessionId }).catch(() => {});
     };
   }, []);
 
-  // Sync terminal CWD when user navigates to a new folder
+  // Dynamically update xterm.js colors when theme changes
+  useEffect(() => {
+    if (termRef.current) {
+      termRef.current.options.theme = theme.terminal;
+    }
+  }, [theme.terminal]);
+
   useEffect(() => {
     if (lastCwdRef.current !== cwd) {
       lastCwdRef.current = cwd;
@@ -78,10 +85,10 @@ export const TerminalDrawer: React.FC<TerminalDrawerProps> = ({ cwd, onClose }) 
   }, [cwd]);
 
   return (
-    <section className="h-56 shrink-0 border-t border-white/10 bg-zinc-950 flex flex-col">
-      <div className="h-8 px-3 border-b border-white/10 bg-zinc-900/70 flex items-center justify-between text-xs text-zinc-400">
+    <section className="h-56 shrink-0 border-t border-subtle bg-crust flex flex-col">
+      <div className="h-8 px-3 border-b border-subtle bg-mantle/80 flex items-center justify-between text-xs text-muted">
         <span className="font-mono truncate">Terminal — {cwd}</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-white/10 hover:text-zinc-100">
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-surface hover:text-main">
           <X className="w-3.5 h-3.5" />
         </button>
       </div>

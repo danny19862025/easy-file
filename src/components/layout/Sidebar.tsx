@@ -69,9 +69,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ].filter(Boolean) as { label: string; path: string; icon: React.ReactNode }[];
 
   return (
-    <aside className="w-60 shrink-0 border-r border-white/10 bg-zinc-900/70 backdrop-blur-xl flex flex-col overflow-y-auto p-3 space-y-5">
+    <aside className="w-60 shrink-0 border-r border-subtle bg-mantle/80 backdrop-blur-md flex flex-col overflow-y-auto p-3 space-y-5">
       <div>
-        <p className="px-2 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+        <p className="px-2 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
           Quick Access
         </p>
         <nav className="space-y-0.5">
@@ -81,13 +81,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={item.label}
                 onClick={() => onNavigate(item.path)}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm transition ${
+                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm border transition ${
                   active
-                    ? "bg-blue-500/20 text-blue-300 font-medium"
-                    : "text-zinc-300 hover:bg-white/5"
+                    ? "bg-accent/15 border-selected/60 text-accent font-medium"
+                    : "border-transparent text-main/90 hover:bg-surface/80"
                 }`}
               >
-                <span className={active ? "text-blue-400" : "text-zinc-400"}>{item.icon}</span>
+                <span className={active ? "text-accent" : "text-muted"}>{item.icon}</span>
                 <span className="truncate">{item.label}</span>
               </button>
             );
@@ -97,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {pinnedPaths.length > 0 && (
         <div>
-          <p className="px-2 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+          <p className="px-2 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
             Pinned
           </p>
           <div className="space-y-0.5">
@@ -106,20 +106,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <div
                   key={pin}
-                  className={`group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-sm transition ${
-                    active ? "bg-blue-500/20 text-blue-300" : "text-zinc-300 hover:bg-white/5"
+                  className={`group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-sm border transition ${
+                    active
+                      ? "bg-accent/15 border-selected/60 text-accent"
+                      : "border-transparent text-main/90 hover:bg-surface/80"
                   }`}
                 >
                   <button
                     onClick={() => onNavigate(pin)}
                     className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                   >
-                    <Pin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <Pin className="w-3.5 h-3.5 text-warning shrink-0" />
                     <span className="truncate">{baseName(pin)}</span>
                   </button>
                   <button
                     onClick={() => onUnpin(pin)}
-                    className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-500 hover:text-zinc-200"
+                    className="opacity-0 group-hover:opacity-100 p-0.5 text-muted hover:text-main"
                     title="Unpin"
                   >
                     <PinOff className="w-3.5 h-3.5" />
@@ -132,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <div>
-        <p className="px-2 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+        <p className="px-2 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
           Drives &amp; Mounts
         </p>
         <div className="space-y-1.5">
@@ -144,36 +146,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={mount.mountPath}
                 onClick={() => onNavigate(mount.mountPath)}
-                className={`w-full text-left px-2.5 py-2 rounded-lg transition ${
-                  active ? "bg-blue-500/20" : "hover:bg-white/5"
+                className={`w-full text-left px-2.5 py-2 rounded-lg border transition ${
+                  active
+                    ? "bg-accent/15 border-selected/60"
+                    : "border-transparent hover:bg-surface/80"
                 }`}
               >
-                <div className="flex items-center justify-between gap-2 text-sm text-zinc-200">
+                <div className="flex items-center justify-between gap-2 text-sm text-main">
                   <div className="flex items-center gap-2 min-w-0">
                     {mount.isGvfs ? (
-                      <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <Globe className="w-4 h-4 text-success shrink-0" />
                     ) : mount.isRemovable ? (
-                      <Usb className="w-4 h-4 text-amber-400 shrink-0" />
+                      <Usb className="w-4 h-4 text-warning shrink-0" />
                     ) : (
-                      <HardDrive className="w-4 h-4 text-zinc-400 shrink-0" />
+                      <HardDrive className="w-4 h-4 text-muted shrink-0" />
                     )}
                     <span className="truncate">{mount.name}</span>
                   </div>
-                  <span className="text-[10px] uppercase text-zinc-500 font-mono">
+                  <span className="text-[10px] uppercase text-muted font-mono">
                     {mount.fsType}
                   </span>
                 </div>
                 {mount.totalBytes > 0 && (
                   <>
-                    <div className="mt-1.5 h-1 w-full rounded-full bg-zinc-800 overflow-hidden">
+                    <div className="mt-1.5 h-1.5 w-full rounded-full bg-surface overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
-                          pct > 85 ? "bg-rose-500" : "bg-blue-500/80"
+                          pct > 85 ? "bg-danger" : "bg-accent"
                         }`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <div className="mt-1 flex justify-between text-[10px] text-zinc-500">
+                    <div className="mt-1 flex justify-between text-[10px] text-muted">
                       <span>{formatBytes(mount.availableBytes)} free</span>
                       <span>{pct}%</span>
                     </div>
@@ -183,7 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             );
           })}
           {mounts.length === 0 && (
-            <div className="px-2.5 py-1.5 text-xs text-zinc-500 flex items-center gap-2">
+            <div className="px-2.5 py-1.5 text-xs text-muted flex items-center gap-2">
               <Folder className="w-3.5 h-3.5" /> No extra mounts detected
             </div>
           )}

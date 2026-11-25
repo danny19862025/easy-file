@@ -11,6 +11,7 @@ import {
   FolderPlus,
   LayoutGrid,
   List,
+  Palette,
   PanelRight,
   PieChart,
   Pin,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { ViewMode } from "../../types/fs";
 import { parentPath } from "../../lib/format";
+import { useTheme } from "../../context/ThemeContext";
 
 interface TopBarProps {
   currentPath: string;
@@ -42,6 +44,7 @@ interface TopBarProps {
   onTogglePreview: () => void;
   onToggleTerminal: () => void;
   onToggleDiskUsage: () => void;
+  onOpenThemeModal: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -67,7 +70,9 @@ export const TopBar: React.FC<TopBarProps> = ({
   onTogglePreview,
   onToggleTerminal,
   onToggleDiskUsage,
+  onOpenThemeModal,
 }) => {
+  const { theme } = useTheme();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(currentPath);
 
@@ -79,13 +84,13 @@ export const TopBar: React.FC<TopBarProps> = ({
   const segments = currentPath.split("/").filter(Boolean);
 
   return (
-    <header className="h-12 shrink-0 border-b border-white/10 bg-zinc-900/60 backdrop-blur-md px-3 flex items-center gap-2">
+    <header className="h-12 shrink-0 border-b border-subtle bg-mantle/80 backdrop-blur-md px-3 flex items-center gap-2">
       {/* History Navigation */}
       <div className="flex items-center gap-0.5">
         <button
           onClick={onBack}
           disabled={!canBack}
-          className="p-1.5 rounded-md hover:bg-white/10 disabled:opacity-30 text-zinc-300"
+          className="p-1.5 rounded-md hover:bg-surface disabled:opacity-30 text-main transition"
           title="Back (Alt+Left)"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -93,14 +98,14 @@ export const TopBar: React.FC<TopBarProps> = ({
         <button
           onClick={onForward}
           disabled={!canForward}
-          className="p-1.5 rounded-md hover:bg-white/10 disabled:opacity-30 text-zinc-300"
+          className="p-1.5 rounded-md hover:bg-surface disabled:opacity-30 text-main transition"
           title="Forward (Alt+Right)"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
         <button
           onClick={() => onNavigate(parentPath(currentPath))}
-          className="p-1.5 rounded-md hover:bg-white/10 text-zinc-300"
+          className="p-1.5 rounded-md hover:bg-surface text-main transition"
           title="Parent Directory"
         >
           <ArrowUp className="w-4 h-4" />
@@ -109,7 +114,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Editable Breadcrumbs */}
       <div
-        className="flex-1 h-8 px-2.5 rounded-lg bg-zinc-950/75 border border-white/10 focus-within:border-blue-500/50 flex items-center justify-between overflow-hidden cursor-text"
+        className="flex-1 h-8 px-2.5 rounded-lg bg-base/85 border border-subtle focus-within:border-selected flex items-center justify-between overflow-hidden cursor-text transition"
         onClick={() => {
           if (!editing) {
             setDraft(currentPath);
@@ -130,16 +135,16 @@ export const TopBar: React.FC<TopBarProps> = ({
               }
               if (e.key === "Escape") setEditing(false);
             }}
-            className="w-full bg-transparent text-sm text-zinc-100 outline-none font-mono"
+            className="w-full bg-transparent text-sm text-main outline-none font-mono"
           />
         ) : (
-          <div className="flex items-center gap-0.5 text-sm text-zinc-300 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-0.5 text-sm text-muted overflow-x-auto no-scrollbar">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onNavigate("/");
               }}
-              className="px-1.5 py-0.5 rounded hover:bg-white/10 text-zinc-400 hover:text-zinc-100"
+              className="px-1.5 py-0.5 rounded hover:bg-surface text-muted hover:text-main transition"
             >
               /
             </button>
@@ -148,14 +153,14 @@ export const TopBar: React.FC<TopBarProps> = ({
               const isLast = i === segments.length - 1;
               return (
                 <React.Fragment key={target}>
-                  <span className="text-zinc-600">/</span>
+                  <span className="text-subtle">/</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onNavigate(target);
                     }}
-                    className={`px-1.5 py-0.5 rounded hover:bg-white/10 truncate max-w-[170px] ${
-                      isLast ? "text-zinc-100 font-medium" : "text-zinc-400"
+                    className={`px-1.5 py-0.5 rounded hover:bg-surface truncate max-w-[170px] transition ${
+                      isLast ? "text-main font-medium" : "text-muted hover:text-main"
                     }`}
                   >
                     {seg}
@@ -171,8 +176,8 @@ export const TopBar: React.FC<TopBarProps> = ({
             e.stopPropagation();
             onTogglePin();
           }}
-          className={`ml-2 p-1 rounded hover:bg-white/10 ${
-            isPinned ? "text-amber-400" : "text-zinc-500 hover:text-zinc-200"
+          className={`ml-2 p-1 rounded hover:bg-surface transition ${
+            isPinned ? "text-warning" : "text-muted hover:text-main"
           }`}
           title={isPinned ? "Unpin directory" : "Pin directory to Sidebar"}
         >
@@ -184,28 +189,28 @@ export const TopBar: React.FC<TopBarProps> = ({
       <div className="flex items-center gap-0.5">
         <button
           onClick={onCreateFolder}
-          className="p-1.5 rounded-md hover:bg-white/10 text-zinc-300"
+          className="p-1.5 rounded-md hover:bg-surface text-main transition"
           title="New Folder"
         >
           <FolderPlus className="w-4 h-4" />
         </button>
         <button
           onClick={onCreateFile}
-          className="p-1.5 rounded-md hover:bg-white/10 text-zinc-300"
+          className="p-1.5 rounded-md hover:bg-surface text-main transition"
           title="New File"
         >
           <FilePlus className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="w-px h-4 bg-white/10" />
+      <div className="w-px h-4 bg-subtle" />
 
       {/* View Modes */}
       <div className="flex items-center gap-0.5">
         <button
           onClick={() => onViewMode("grid")}
-          className={`p-1.5 rounded-md ${
-            viewMode === "grid" ? "bg-white/15 text-white" : "text-zinc-400 hover:bg-white/5"
+          className={`p-1.5 rounded-md transition ${
+            viewMode === "grid" ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
           title="Grid View"
         >
@@ -213,8 +218,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
         <button
           onClick={() => onViewMode("list")}
-          className={`p-1.5 rounded-md ${
-            viewMode === "list" ? "bg-white/15 text-white" : "text-zinc-400 hover:bg-white/5"
+          className={`p-1.5 rounded-md transition ${
+            viewMode === "list" ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
           title="Detailed List View"
         >
@@ -222,8 +227,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
         <button
           onClick={() => onViewMode("column")}
-          className={`p-1.5 rounded-md ${
-            viewMode === "column" ? "bg-white/15 text-white" : "text-zinc-400 hover:bg-white/5"
+          className={`p-1.5 rounded-md transition ${
+            viewMode === "column" ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
           title="Column View"
         >
@@ -231,14 +236,14 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
       </div>
 
-      <div className="w-px h-4 bg-white/10" />
+      <div className="w-px h-4 bg-subtle" />
 
-      {/* Tools */}
+      {/* Tools + Theme Switcher */}
       <div className="flex items-center gap-0.5">
         <button
           onClick={onToggleSplit}
-          className={`p-1.5 rounded-md ${
-            splitView ? "bg-blue-500/25 text-blue-300" : "text-zinc-400 hover:bg-white/5"
+          className={`p-1.5 rounded-md transition ${
+            splitView ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
           title="Toggle Dual-Pane Split View (Ctrl+\)"
         >
@@ -246,8 +251,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
         <button
           onClick={onToggleHidden}
-          className={`p-1.5 rounded-md ${
-            showHidden ? "bg-white/15 text-white" : "text-zinc-400 hover:bg-white/5"
+          className={`p-1.5 rounded-md transition ${
+            showHidden ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
           title="Toggle Hidden Files (Ctrl+H)"
         >
@@ -255,8 +260,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
         <button
           onClick={onToggleDiskUsage}
-          className={`p-1.5 rounded-md ${
-            showDiskUsage ? "bg-blue-500/25 text-blue-300" : "text-zinc-400 hover:bg-white/5"
+          className={`p-1.5 rounded-md transition ${
+            showDiskUsage ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
           title="Disk Usage Breakdown"
         >
@@ -264,8 +269,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
         <button
           onClick={onTogglePreview}
-          className={`p-1.5 rounded-md ${
-            showPreview ? "bg-blue-500/25 text-blue-300" : "text-zinc-400 hover:bg-white/5"
+          className={`p-1.5 rounded-md transition ${
+            showPreview ? "bg-accent/20 text-accent" : "text-muted hover:bg-surface hover:text-main"
           }`}
           title="Quick Preview (Space)"
         >
@@ -273,12 +278,23 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
         <button
           onClick={onToggleTerminal}
-          className={`p-1.5 rounded-md ${
-            showTerminal ? "bg-emerald-500/25 text-emerald-300" : "text-zinc-400 hover:bg-white/5"
+          className={`p-1.5 rounded-md transition ${
+            showTerminal ? "bg-success/20 text-success" : "text-muted hover:bg-surface hover:text-main"
           }`}
           title="Integrated Terminal (Ctrl+`)"
         >
           <Terminal className="w-4 h-4" />
+        </button>
+
+        <div className="w-px h-4 bg-subtle mx-0.5" />
+
+        <button
+          onClick={onOpenThemeModal}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-subtle bg-surface/60 hover:bg-surface hover:border-selected text-xs text-main transition"
+          title={`Theme: ${theme.name}`}
+        >
+          <Palette className="w-3.5 h-3.5 text-secondary" />
+          <span className="hidden xl:inline">{theme.name}</span>
         </button>
       </div>
     </header>
