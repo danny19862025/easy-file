@@ -27,7 +27,12 @@ pub struct FileEntry {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "event", content = "data", rename_all = "camelCase")]
+#[serde(
+    tag = "event",
+    content = "data",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum DirStreamEvent {
     Batch {
         request_id: u64,
