@@ -1,7 +1,9 @@
+pub mod cloud_sync;
 pub mod dir_reader;
 pub mod disk_usage;
 pub mod fs_ops;
 pub mod mounts;
+pub mod network;
 pub mod pty;
 pub mod search_index;
 pub mod watcher;

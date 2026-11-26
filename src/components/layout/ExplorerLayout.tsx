@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { FileEntry, MountPoint, UserDirsInfo } from "../../types/fs";
+import { NetworkBookmark, RcloneRemote, SyncRule } from "../../types/network";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { useShelfStore } from "../../stores/useShelfStore";
 import { Sidebar } from "./Sidebar";
@@ -15,6 +17,8 @@ import { ThemeSwitcherModal } from "../settings/ThemeSwitcherModal";
 import { ShortcutsModal } from "../settings/ShortcutsModal";
 import { PromptDialogConfig, PromptModal } from "../modals/PromptModal";
 import { FuzzySearchModal } from "../search/FuzzySearchModal";
+import { MountRemoteModal } from "../network/MountRemoteModal";
+import { CloudSyncModal } from "../network/CloudSyncModal";
 import { baseName, parentPath } from "../../lib/format";
 
 export const ExplorerLayout: React.FC = () => {
@@ -27,6 +31,11 @@ export const ExplorerLayout: React.FC = () => {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showNetworkModal, setShowNetworkModal] = useState(false);
+  const [showCloudSyncModal, setShowCloudSyncModal] = useState(false);
+  const [networkBookmarks, setNetworkBookmarks] = useState<NetworkBookmark[]>([]);
+  const [cloudRemotes, setCloudRemotes] = useState<RcloneRemote[]>([]);
+  const [syncRules, setSyncRules] = useState<SyncRule[]>([]);
   const [promptDialog, setPromptDialog] = useState<PromptDialogConfig | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [focusPathSignal, setFocusPathSignal] = useState(0);
@@ -37,6 +46,13 @@ export const ExplorerLayout: React.FC = () => {
   const activeTab =
     activePane.tabs.find((t) => t.id === activePane.activeTabId) ?? activePane.tabs[0];
 
+  const refreshNetworkAndCloud = useCallback(() => {
+    invoke<MountPoint[]>("list_mounts").then(setMounts).catch(() => {});
+    invoke<NetworkBookmark[]>("list_network_bookmarks").then(setNetworkBookmarks).catch(() => {});
+    invoke<RcloneRemote[]>("list_cloud_remotes").then(setCloudRemotes).catch(() => {});
+    invoke<SyncRule[]>("list_sync_rules").then(setSyncRules).catch(() => {});
+  }, []);
+
   useEffect(() => {
     invoke<UserDirsInfo>("get_user_dirs")
       .then((dirs) => {
@@ -45,10 +61,15 @@ export const ExplorerLayout: React.FC = () => {
       })
       .catch(() => {});
 
-    invoke<MountPoint[]>("list_mounts")
-      .then(setMounts)
-      .catch(() => {});
-  }, []);
+    refreshNetworkAndCloud();
+
+    const unlisten = listen<SyncRule[]>("cloud:sync-updated", (event) => {
+      setSyncRules(event.payload);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [refreshNetworkAndCloud]);
 
   const handleStartResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -382,9 +403,36 @@ export const ExplorerLayout: React.FC = () => {
         userDirs={userDirs}
         mounts={mounts}
         pinnedPaths={store.pinnedPaths}
+        networkBookmarks={networkBookmarks}
+        cloudRemotes={cloudRemotes}
+        syncRules={syncRules}
         activePath={activeTab.path}
         onNavigate={(path) => store.navigate(activePane.id, path)}
         onUnpin={store.togglePin}
+        onOpenConnectNetwork={() => setShowNetworkModal(true)}
+        onOpenCloudSync={() => setShowCloudSyncModal(true)}
+        onClickNetworkBookmark={async (bm) => {
+          if (bm.mountPath) {
+            store.navigate(activePane.id, bm.mountPath);
+          } else {
+            store.showToast(`Mounting ${bm.name}…`);
+            setShowNetworkModal(true);
+          }
+        }}
+        onClickCloudRemote={async (remote) => {
+          if (remote.mounted && remote.mountPath) {
+            store.navigate(activePane.id, remote.mountPath);
+          } else {
+            try {
+              store.showToast(`Mounting ${remote.name}…`);
+              const mp = await invoke<string>("mount_cloud_remote", { remoteName: remote.name });
+              refreshNetworkAndCloud();
+              store.navigate(activePane.id, mp);
+            } catch (err) {
+              store.showToast(String(err));
+            }
+          }
+        }}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -494,6 +542,31 @@ export const ExplorerLayout: React.FC = () => {
 
       {showThemeModal && <ThemeSwitcherModal onClose={() => setShowThemeModal(false)} />}
       {showShortcutsModal && <ShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
+      {showNetworkModal && (
+        <MountRemoteModal
+          onClose={() => setShowNetworkModal(false)}
+          onConnected={(bm) => {
+            refreshNetworkAndCloud();
+            if (bm.mountPath) {
+              store.navigate(activePane.id, bm.mountPath);
+              store.showToast(`Connected to ${bm.name}`);
+            } else {
+              store.showToast(`Saved ${bm.name}`);
+            }
+          }}
+        />
+      )}
+      {showCloudSyncModal && (
+        <CloudSyncModal
+          currentPath={activeTab.path}
+          remotes={cloudRemotes}
+          rules={syncRules}
+          onRefresh={refreshNetworkAndCloud}
+          onNavigate={(path) => store.navigate(activePane.id, path)}
+          onToast={store.showToast}
+          onClose={() => setShowCloudSyncModal(false)}
+        />
+      )}
       {promptDialog && (
         <PromptModal config={promptDialog} onClose={() => setPromptDialog(null)} />
       )}

@@ -7,7 +7,9 @@ use crate::error::AppError;
 use crate::models::entry::{
     DirStreamEvent, DiskUsageReport, MountPoint, PreviewData, UserDirsInfo,
 };
-use crate::services::{dir_reader, disk_usage, fs_ops, mounts, pty, search_index, watcher};
+use crate::services::{
+    cloud_sync, dir_reader, disk_usage, fs_ops, mounts, network, pty, search_index, watcher,
+};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -204,4 +206,99 @@ pub async fn resize_pty(
 pub async fn close_pty(state: State<'_, AppState>, session_id: String) -> Result<(), AppError> {
     pty::close_pty(&state, &session_id).await;
     Ok(())
+}
+
+// --- Network (GVFS: SMB, SFTP, FTP, WebDAV) ---
+
+#[tauri::command]
+pub async fn check_network_tools() -> network::ToolAvailability {
+    network::check_tools()
+}
+
+#[tauri::command]
+pub async fn list_network_bookmarks() -> Vec<network::NetworkBookmark> {
+    network::list_bookmarks()
+}
+
+#[tauri::command]
+pub async fn connect_network(
+    name: String,
+    protocol: String,
+    host: String,
+    port: Option<u16>,
+    share_path: Option<String>,
+    username: Option<String>,
+) -> Result<network::NetworkBookmark, AppError> {
+    network::connect_network(name, protocol, host, port, share_path, username).await
+}
+
+#[tauri::command]
+pub async fn unmount_network(uri: String) -> Result<(), AppError> {
+    network::unmount_network(uri).await
+}
+
+#[tauri::command]
+pub async fn remove_network_bookmark(id: String) -> Result<(), AppError> {
+    network::remove_bookmark(&id)
+}
+
+// --- Cloud Remotes & Auto-Sync (Google Drive & Dropbox via rclone) ---
+
+#[tauri::command]
+pub async fn list_cloud_remotes() -> Vec<cloud_sync::RcloneRemote> {
+    cloud_sync::list_rclone_remotes().await
+}
+
+#[tauri::command]
+pub async fn mount_cloud_remote(remote_name: String) -> Result<String, AppError> {
+    cloud_sync::mount_rclone_remote(remote_name).await
+}
+
+#[tauri::command]
+pub async fn unmount_cloud_remote(mount_path: String) -> Result<(), AppError> {
+    cloud_sync::unmount_rclone_remote(mount_path).await
+}
+
+#[tauri::command]
+pub async fn list_sync_rules() -> Vec<cloud_sync::SyncRule> {
+    cloud_sync::load_rules()
+}
+
+#[tauri::command]
+pub async fn add_sync_rule(
+    name: String,
+    provider: String,
+    remote_name: String,
+    local_path: String,
+    remote_path: String,
+    mode: String,
+    interval_mins: u64,
+) -> Result<cloud_sync::SyncRule, AppError> {
+    cloud_sync::add_sync_rule(
+        name,
+        provider,
+        remote_name,
+        local_path,
+        remote_path,
+        mode,
+        interval_mins,
+    )
+}
+
+#[tauri::command]
+pub async fn toggle_sync_rule(
+    id: String,
+    enabled: bool,
+) -> Result<Vec<cloud_sync::SyncRule>, AppError> {
+    cloud_sync::toggle_sync_rule(&id, enabled)
+}
+
+#[tauri::command]
+pub async fn delete_sync_rule(id: String) -> Result<Vec<cloud_sync::SyncRule>, AppError> {
+    cloud_sync::delete_sync_rule(&id)
+}
+
+#[tauri::command]
+pub async fn run_sync_rule_now(app: AppHandle, id: String) -> Result<cloud_sync::SyncRule, AppError> {
+    cloud_sync::run_sync_rule(&app, &id).await
 }
