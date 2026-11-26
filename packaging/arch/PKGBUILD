@@ -1,0 +1,22 @@
+# Maintainer: Easy File
+pkgname=easy-file
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Modern, high-performance Linux File Manager built with Rust, Tauri v2, and React"
+arch=('x86_64')
+url="https://github.com/danny19862025/easy-file"
+license=('MIT')
+depends=('webkit2gtk-4.1' 'gtk3' 'dbus')
+options=('!strip' '!debug')
+
+package() {
+  local root_dir="${startdir}/../.."
+
+  install -Dm755 "${root_dir}/src-tauri/target/release/easy-file" "${pkgdir}/usr/bin/easy-file"
+  install -Dm644 "${root_dir}/packaging/easy-file.svg" "${pkgdir}/usr/share/icons/hicolor/scalable/apps/easy-file.svg"
+
+  install -dm755 "${pkgdir}/usr/share/applications"
+  sed 's|Exec=/home/danny/.local/bin/easy-file|Exec=/usr/bin/easy-file|' \
+    "${root_dir}/packaging/easy-file.desktop" > "${pkgdir}/usr/share/applications/easy-file.desktop"
+  chmod 644 "${pkgdir}/usr/share/applications/easy-file.desktop"
+}

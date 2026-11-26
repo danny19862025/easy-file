@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Easy File
+Comment=Modern, high-performance Linux File Manager
+Exec=/home/danny/.local/bin/easy-file %U
+Icon=easy-file
+Terminal=false
+Type=Application
+Categories=System;FileTools;FileManager;Utility;
+MimeType=inode/directory;
+StartupWMClass=easy-file
+Keywords=file;manager;explorer;folder;directory;files;

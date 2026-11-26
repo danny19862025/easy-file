@@ -7,6 +7,11 @@ dist/
 # Rust / Tauri build artifacts
 src-tauri/target/
 
+# Arch packaging build outputs
+packaging/arch/pkg/
+packaging/arch/src/
+*.pkg.tar.zst
+
 # OS & Editor files
 .DS_Store
 *.log
